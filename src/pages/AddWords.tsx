@@ -1,0 +1,230 @@
+import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useStore } from '../store/useStore'
+import { XpWindow } from '../components/XpWindow'
+import { Barny } from '../components/Barny'
+import type { VocabularyItem } from '../types/vocabulary'
+
+interface PendingCard {
+  id: string
+  spanish: string
+  english: string
+}
+
+const BUCKETS: { type: VocabularyItem['type']; label: string; icon: string }[] = [
+  { type: 'noun', label: 'Noun', icon: '📦' },
+  { type: 'verb', label: 'Verb', icon: '🏃' },
+  { type: 'adjective', label: 'Adjective', icon: '🎨' },
+  { type: 'phrase', label: 'Phrase', icon: '💬' },
+]
+
+export function AddWords() {
+  const navigate = useNavigate()
+  const { customWords, addCustomWord, removeCustomWord } = useStore()
+
+  const [spanish, setSpanish] = useState('')
+  const [english, setEnglish] = useState('')
+  const [pending, setPending] = useState<PendingCard[]>([])
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [dragOver, setDragOver] = useState<string | null>(null)
+
+  const canCreate = spanish.trim() !== '' && english.trim() !== ''
+
+  function handleCreate() {
+    if (!canCreate) return
+    setPending((prev) => [
+      ...prev,
+      {
+        id: `pending-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        spanish: spanish.trim(),
+        english: english.trim(),
+      },
+    ])
+    setSpanish('')
+    setEnglish('')
+  }
+
+  function assign(cardId: string, type: VocabularyItem['type']) {
+    const card = pending.find((c) => c.id === cardId)
+    if (!card) return
+    addCustomWord({
+      id: `custom-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      spanish_word: card.spanish,
+      english_translation: card.english,
+      type,
+      tags: ['custom'],
+      mastery_level: 0,
+      next_review_date: new Date().toISOString(),
+      beginner_safe: true,
+    })
+    setPending((prev) => prev.filter((c) => c.id !== cardId))
+    if (selectedId === cardId) setSelectedId(null)
+  }
+
+  function handleBucketActivate(type: VocabularyItem['type']) {
+    if (selectedId) assign(selectedId, type)
+  }
+
+  const inputStyle: React.CSSProperties = {
+    width: '100%', padding: '8px 10px', fontSize: '14px',
+    fontFamily: 'var(--font-ui)', background: '#1a1a1a',
+    border: '2px solid var(--color-accent)', borderRadius: '3px',
+    color: '#fff', boxSizing: 'border-box', outline: 'none',
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', padding: '8px' }}>
+      <XpWindow title="Add Your Own Words" icon="➕" width="min(560px, 100%)" onClose={() => navigate('/dashboard')} style={{ flex: 1, maxHeight: 'none' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <Barny message="Make a card, then drag it into the right box! 🐾" size="small" pose="happy" />
+
+          {/* Step 1: type the pair */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <label style={{ fontSize: '12px', color: '#888' }}>
+              Spanish word / phrase
+              <input
+                style={{ ...inputStyle, marginTop: '4px' }}
+                value={spanish}
+                placeholder="e.g. el gato"
+                onChange={(e) => setSpanish(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleCreate() }}
+              />
+            </label>
+            <label style={{ fontSize: '12px', color: '#888' }}>
+              English translation
+              <input
+                style={{ ...inputStyle, marginTop: '4px' }}
+                value={english}
+                placeholder="e.g. the cat"
+                onChange={(e) => setEnglish(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleCreate() }}
+              />
+            </label>
+            <button
+              className="xp-btn xp-btn-primary"
+              disabled={!canCreate}
+              onClick={handleCreate}
+            >
+              Make card
+            </button>
+          </div>
+
+          {/* Step 2: drag cards into a type box */}
+          <div style={{ borderTop: '1px solid var(--color-button-shadow)', paddingTop: '10px' }}>
+            <p style={{ fontSize: '12px', color: '#888', margin: '0 0 6px' }}>
+              {pending.length === 0
+                ? 'Cards you make appear here — drag or tap them into a box below.'
+                : 'Drag a card into a box (or tap a card, then tap a box).'}
+            </p>
+
+            {/* Unsorted cards */}
+            <div style={{
+              display: 'flex', flexWrap: 'wrap', gap: '6px', minHeight: '40px',
+              padding: '8px', borderRadius: '4px',
+              border: '1px dashed var(--color-button-shadow)',
+              background: 'rgba(255,255,255,0.02)',
+            }}>
+              {pending.length === 0 && (
+                <span style={{ fontSize: '11px', color: '#666', alignSelf: 'center' }}>No cards yet</span>
+              )}
+              {pending.map((card) => (
+                <div
+                  key={card.id}
+                  draggable
+                  onDragStart={(e) => {
+                    setSelectedId(card.id)
+                    e.dataTransfer.setData('text/plain', card.id)
+                    e.dataTransfer.effectAllowed = 'move'
+                  }}
+                  onDragEnd={() => setDragOver(null)}
+                  onClick={() => setSelectedId(selectedId === card.id ? null : card.id)}
+                  style={{
+                    cursor: 'grab',
+                    padding: '6px 10px',
+                    borderRadius: '4px',
+                    fontSize: '13px',
+                    userSelect: 'none',
+                    border: `2px solid ${selectedId === card.id ? 'var(--color-accent)' : 'var(--color-button-shadow)'}`,
+                    background: selectedId === card.id ? 'rgba(255,255,255,0.08)' : '#1a1a1a',
+                  }}
+                  title="Drag me into a box below"
+                >
+                  <strong style={{ color: 'var(--color-accent)' }}>{card.spanish}</strong>
+                  <span style={{ color: '#888' }}> — {card.english}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Type buckets / drop zones */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', marginTop: '8px' }}>
+              {BUCKETS.map((b) => {
+                const active = dragOver === b.type
+                return (
+                  <div
+                    key={b.type}
+                    onDragOver={(e) => { e.preventDefault(); setDragOver(b.type) }}
+                    onDragLeave={() => setDragOver((d) => (d === b.type ? null : d))}
+                    onDrop={(e) => {
+                      e.preventDefault()
+                      const id = e.dataTransfer.getData('text/plain')
+                      if (id) assign(id, b.type)
+                      setDragOver(null)
+                    }}
+                    onClick={() => handleBucketActivate(b.type)}
+                    style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                      padding: '14px 8px', borderRadius: '6px', textAlign: 'center',
+                      fontSize: '13px', fontWeight: 'bold',
+                      cursor: selectedId ? 'pointer' : 'default',
+                      border: `2px ${active ? 'solid' : 'dashed'} ${active || (selectedId && true) ? 'var(--color-accent)' : 'var(--color-button-shadow)'}`,
+                      background: active ? 'rgba(120,200,120,0.15)' : 'rgba(255,255,255,0.02)',
+                      transition: 'background 0.1s, border-color 0.1s',
+                    }}
+                  >
+                    <span style={{ fontSize: '18px' }}>{b.icon}</span> {b.label}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Saved words */}
+          {customWords.length > 0 && (
+            <div style={{ borderTop: '1px solid var(--color-button-shadow)', paddingTop: '10px' }}>
+              <p style={{ fontSize: '12px', color: '#888', marginBottom: '8px' }}>
+                Your words ({customWords.length})
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '160px', overflowY: 'auto' }}>
+                {customWords.map((w) => (
+                  <div
+                    key={w.id}
+                    style={{
+                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                      fontSize: '13px', padding: '4px 8px',
+                      border: '1px solid var(--color-button-shadow)', borderRadius: '3px',
+                    }}
+                  >
+                    <span>
+                      <strong style={{ color: 'var(--color-accent)' }}>{w.spanish_word}</strong>
+                      <span style={{ color: '#888' }}> — {w.english_translation}</span>
+                      <span style={{ color: '#666', fontSize: '10px' }}> · {w.type}</span>
+                    </span>
+                    <button
+                      className="xp-btn"
+                      style={{ fontSize: '11px', minWidth: 'auto', padding: '2px 8px' }}
+                      onClick={() => removeCustomWord(w.id)}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <button className="xp-btn" onClick={() => navigate('/dashboard')}>← Dashboard</button>
+        </div>
+      </XpWindow>
+    </div>
+  )
+}

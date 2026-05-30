@@ -1,0 +1,332 @@
+[
+  {
+    "id": "001",
+    "spanish_word": "bien",
+    "english_translation": "good",
+    "type": "adjective",
+    "tags": ["lesson_27_06_26", "responses"],
+    "mastery_level": 0,
+    "next_review_date": "2026-05-28T00:00:00.000Z",
+    "beginner_safe": true
+  },
+  {
+    "id": "002",
+    "spanish_word": "mal",
+    "english_translation": "bad / not good",
+    "type": "adjective",
+    "tags": ["lesson_27_06_26", "responses"],
+    "mastery_level": 0,
+    "next_review_date": "2026-05-28T00:00:00.000Z",
+    "beginner_safe": true
+  },
+  {
+    "id": "003",
+    "spanish_word": "normal",
+    "english_translation": "fine / okay",
+    "type": "adjective",
+    "tags": ["lesson_27_06_26", "responses"],
+    "mastery_level": 0,
+    "next_review_date": "2026-05-28T00:00:00.000Z",
+    "beginner_safe": true
+  },
+  {
+    "id": "004",
+    "spanish_word": "¿Y tú?",
+    "english_translation": "And you? / What about you?",
+    "type": "phrase",
+    "tags": ["lesson_27_06_26", "responses"],
+    "mastery_level": 0,
+    "next_review_date": "2026-05-28T00:00:00.000Z",
+    "beginner_safe": true
+  },
+  {
+    "id": "005",
+    "spanish_word": "me gusta",
+    "english_translation": "I like (one thing)",
+    "type": "phrase",
+    "tags": ["lesson_27_06_26", "opinions", "singular"],
+    "mastery_level": 0,
+    "next_review_date": "2026-05-28T00:00:00.000Z",
+    "beginner_safe": true
+  },
+  {
+    "id": "006",
+    "spanish_word": "no me gusta",
+    "english_translation": "I don't like",
+    "type": "phrase",
+    "tags": ["lesson_27_06_26", "opinions"],
+    "mastery_level": 0,
+    "next_review_date": "2026-05-28T00:00:00.000Z",
+    "beginner_safe": true
+  },
+  {
+    "id": "007",
+    "spanish_word": "me encanta",
+    "english_translation": "I love (one thing)",
+    "type": "phrase",
+    "tags": ["lesson_27_06_26", "opinions", "singular"],
+    "mastery_level": 0,
+    "next_review_date": "2026-05-28T00:00:00.000Z",
+    "beginner_safe": true
+  },
+  {
+    "id": "008",
+    "spanish_word": "me gustan",
+    "english_translation": "I like (multiple things)",
+    "type": "phrase",
+    "tags": ["lesson_27_06_26", "opinions", "plural"],
+    "mastery_level": 0,
+    "next_review_date": "2026-05-28T00:00:00.000Z",
+    "beginner_safe": true
+  },
+  {
+    "id": "009",
+    "spanish_word": "me encantan",
+    "english_translation": "I love (multiple things)",
+    "type": "phrase",
+    "tags": ["lesson_27_06_26", "opinions", "plural"],
+    "mastery_level": 0,
+    "next_review_date": "2026-05-28T00:00:00.000Z",
+    "beginner_safe": true
+  },
+  {
+    "id": "010",
+    "spanish_word": "te gusta",
+    "english_translation": "you like / do you like?",
+    "type": "phrase",
+    "tags": ["lesson_27_06_26", "opinions", "singular"],
+    "mastery_level": 0,
+    "next_review_date": "2026-05-28T00:00:00.000Z",
+    "beginner_safe": true
+  },
+  {
+    "id": "011",
+    "spanish_word": "te gustan",
+    "english_translation": "you like (multiple things)",
+    "type": "phrase",
+    "tags": ["lesson_27_06_26", "opinions", "plural"],
+    "mastery_level": 0,
+    "next_review_date": "2026-05-28T00:00:00.000Z",
+    "beginner_safe": true
+  },
+  {
+    "id": "012",
+    "spanish_word": "te quiero",
+    "english_translation": "I love you",
+    "type": "phrase",
+    "tags": ["lesson_27_06_26", "opinions"],
+    "mastery_level": 0,
+    "next_review_date": "2026-05-28T00:00:00.000Z",
+    "beginner_safe": true
+  },
+  {
+    "id": "013",
+    "spanish_word": "quiero",
+    "english_translation": "I want",
+    "type": "verb",
+    "tags": ["lesson_27_06_26", "opinions"],
+    "mastery_level": 0,
+    "next_review_date": "2026-05-28T00:00:00.000Z",
+    "beginner_safe": true
+  },
+  {
+    "id": "014",
+    "spanish_word": "odio",
+    "english_translation": "I hate",
+    "type": "verb",
+    "tags": ["lesson_27_06_26", "opinions"],
+    "mastery_level": 0,
+    "next_review_date": "2026-05-28T00:00:00.000Z",
+    "beginner_safe": true
+  },
+  {
+    "id": "015",
+    "spanish_word": "¿odias?",
+    "english_translation": "do you hate?",
+    "type": "phrase",
+    "tags": ["lesson_27_06_26", "opinions"],
+    "mastery_level": 0,
+    "next_review_date": "2026-05-28T00:00:00.000Z",
+    "beginner_safe": true
+  },
+  {
+    "id": "016",
+    "spanish_word": "me da igual",
+    "english_translation": "I don't mind it",
+    "type": "phrase",
+    "tags": ["lesson_27_06_26", "opinions"],
+    "mastery_level": 0,
+    "next_review_date": "2026-05-28T00:00:00.000Z",
+    "beginner_safe": true
+  },
+  {
+    "id": "017",
+    "spanish_word": "no me interesa",
+    "english_translation": "I'm not interested in",
+    "type": "phrase",
+    "tags": ["lesson_27_06_26", "opinions"],
+    "mastery_level": 0,
+    "next_review_date": "2026-05-28T00:00:00.000Z",
+    "beginner_safe": true
+  },
+  {
+    "id": "018",
+    "spanish_word": "no sé",
+    "english_translation": "I don't know",
+    "type": "phrase",
+    "tags": ["lesson_27_06_26", "responses"],
+    "mastery_level": 0,
+    "next_review_date": "2026-05-28T00:00:00.000Z",
+    "beginner_safe": true
+  },
+  {
+    "id": "019",
+    "spanish_word": "en mi tiempo libre",
+    "english_translation": "in my free time",
+    "type": "phrase",
+    "tags": ["lesson_27_06_26", "hobbies"],
+    "mastery_level": 0,
+    "next_review_date": "2026-05-28T00:00:00.000Z",
+    "beginner_safe": true
+  },
+  {
+    "id": "020",
+    "spanish_word": "los pasatiempos",
+    "english_translation": "hobbies",
+    "type": "noun",
+    "tags": ["lesson_27_06_26", "hobbies"],
+    "mastery_level": 0,
+    "next_review_date": "2026-05-28T00:00:00.000Z",
+    "beginner_safe": true
+  },
+  {
+    "id": "021",
+    "spanish_word": "beber",
+    "english_translation": "to drink",
+    "type": "verb",
+    "tags": ["lesson_27_06_26", "hobbies", "drinks"],
+    "mastery_level": 0,
+    "next_review_date": "2026-05-28T00:00:00.000Z",
+    "beginner_safe": true
+  },
+  {
+    "id": "022",
+    "spanish_word": "comer",
+    "english_translation": "to eat",
+    "type": "verb",
+    "tags": ["lesson_27_06_26", "hobbies"],
+    "mastery_level": 0,
+    "next_review_date": "2026-05-28T00:00:00.000Z",
+    "beginner_safe": true
+  },
+  {
+    "id": "023",
+    "spanish_word": "jugar",
+    "english_translation": "to play",
+    "type": "verb",
+    "tags": ["lesson_27_06_26", "hobbies"],
+    "mastery_level": 0,
+    "next_review_date": "2026-05-28T00:00:00.000Z",
+    "beginner_safe": true
+  },
+  {
+    "id": "024",
+    "spanish_word": "nadar",
+    "english_translation": "to swim",
+    "type": "verb",
+    "tags": ["lesson_27_06_26", "hobbies"],
+    "mastery_level": 0,
+    "next_review_date": "2026-05-28T00:00:00.000Z",
+    "beginner_safe": true
+  },
+  {
+    "id": "025",
+    "spanish_word": "chatear",
+    "english_translation": "to chat",
+    "type": "verb",
+    "tags": ["lesson_27_06_26", "hobbies"],
+    "mastery_level": 0,
+    "next_review_date": "2026-05-28T00:00:00.000Z",
+    "beginner_safe": true
+  },
+  {
+    "id": "026",
+    "spanish_word": "en línea",
+    "english_translation": "online",
+    "type": "phrase",
+    "tags": ["lesson_27_06_26", "hobbies"],
+    "mastery_level": 0,
+    "next_review_date": "2026-05-28T00:00:00.000Z",
+    "beginner_safe": true
+  },
+  {
+    "id": "027",
+    "spanish_word": "tomar las fotos",
+    "english_translation": "to take photos",
+    "type": "phrase",
+    "tags": ["lesson_27_06_26", "hobbies"],
+    "mastery_level": 0,
+    "next_review_date": "2026-05-28T00:00:00.000Z",
+    "beginner_safe": true
+  },
+  {
+    "id": "028",
+    "spanish_word": "trabajar",
+    "english_translation": "to work",
+    "type": "verb",
+    "tags": ["lesson_27_06_26", "hobbies"],
+    "mastery_level": 0,
+    "next_review_date": "2026-05-28T00:00:00.000Z",
+    "beginner_safe": true
+  },
+  {
+    "id": "029",
+    "spanish_word": "el vino tinto",
+    "english_translation": "red wine",
+    "type": "noun",
+    "tags": ["lesson_27_06_26", "drinks"],
+    "mastery_level": 0,
+    "next_review_date": "2026-05-28T00:00:00.000Z",
+    "beginner_safe": true
+  },
+  {
+    "id": "030",
+    "spanish_word": "el vino blanco",
+    "english_translation": "white wine",
+    "type": "noun",
+    "tags": ["lesson_27_06_26", "drinks"],
+    "mastery_level": 0,
+    "next_review_date": "2026-05-28T00:00:00.000Z",
+    "beginner_safe": true
+  },
+  {
+    "id": "031",
+    "spanish_word": "la sangría",
+    "english_translation": "sangria",
+    "type": "noun",
+    "tags": ["lesson_27_06_26", "drinks"],
+    "mastery_level": 0,
+    "next_review_date": "2026-05-28T00:00:00.000Z",
+    "beginner_safe": true
+  },
+  {
+    "id": "032",
+    "spanish_word": "el agua",
+    "english_translation": "water",
+    "type": "noun",
+    "tags": ["lesson_27_06_26", "drinks"],
+    "mastery_level": 0,
+    "next_review_date": "2026-05-28T00:00:00.000Z",
+    "beginner_safe": true
+  },
+  {
+    "id": "033",
+    "spanish_word": "el vino",
+    "english_translation": "wine",
+    "type": "noun",
+    "tags": ["lesson_27_06_26", "drinks"],
+    "mastery_level": 0,
+    "next_review_date": "2026-05-28T00:00:00.000Z",
+    "beginner_safe": true
+  }
+]

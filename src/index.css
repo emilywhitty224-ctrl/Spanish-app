@@ -1,0 +1,259 @@
+@import './styles/themes.css';
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-ui, 'Tahoma', Arial, sans-serif);
+  font-size: var(--font-size-base, 11px);
+  background: var(--color-desktop-bg);
+  color: var(--color-body-text);
+  height: 100dvh;
+  overflow: hidden;
+}
+
+#root {
+  width: 100vw;
+  height: 100dvh;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  overflow: hidden;
+}
+
+@media (max-width: 767px) {
+  body {
+    font-size: 14px;
+  }
+
+  .xp-titlebar {
+    font-size: 16px;
+    padding: 8px 10px;
+  }
+
+  .xp-titlebar-btn {
+    width: 30px;
+    height: 30px;
+    font-size: 14px;
+  }
+
+  .xp-content {
+    padding: 16px;
+  }
+
+  .xp-btn {
+    font-size: 15px;
+    padding: 10px 20px;
+  }
+
+  .xp-btn-large {
+    font-size: 18px;
+    padding: 18px 28px;
+    min-height: 80px;
+  }
+
+  .xp-mode-card {
+    padding: 14px;
+  }
+}
+
+@media (min-width: 768px) {
+  #root {
+    width: calc(100vw / 1.3);
+    height: calc(100dvh / 1.3);
+    zoom: 1.3;
+  }
+}
+
+/* ============================================
+   RETRO WINDOW COMPONENT
+   ============================================ */
+.xp-window {
+  background: var(--color-window-bg);
+  border: 2px solid var(--color-window-border);
+  border-radius: 8px 8px 4px 4px;
+  overflow: hidden;
+  box-shadow:
+    inset 1px 1px 0 var(--color-button-highlight),
+    0 8px 32px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  max-height: 100%;
+}
+
+.xp-titlebar {
+  background: linear-gradient(
+    to right,
+    var(--color-titlebar-start),
+    var(--color-titlebar-end)
+  );
+  border-radius: 6px 6px 0 0;
+  color: var(--color-titlebar-text);
+  font-weight: bold;
+  font-size: 13px;
+  padding: 5px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.xp-titlebar-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.xp-titlebar-icon {
+  font-size: 14px;
+}
+
+.xp-titlebar-buttons {
+  display: flex;
+  gap: 2px;
+}
+
+.xp-titlebar-btn {
+  width: 24px;
+  height: 24px;
+  font-size: 12px;
+  font-weight: bold;
+  font-family: var(--font-ui);
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.xp-titlebar-btn.close {
+  background: #c75050;
+  color: white;
+}
+
+.xp-titlebar-btn.minimize,
+.xp-titlebar-btn.maximize {
+  background: var(--color-button-face);
+  color: var(--color-button-text);
+  border-top: 1px solid var(--color-button-highlight);
+  border-left: 1px solid var(--color-button-highlight);
+  border-right: 1px solid var(--color-button-dark-shadow);
+  border-bottom: 1px solid var(--color-button-dark-shadow);
+}
+
+.xp-content {
+  padding: 20px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+/* ============================================
+   RETRO BUTTON
+   ============================================ */
+.xp-btn {
+  font-family: var(--font-ui);
+  font-size: 13px;
+  background: var(--color-button-face);
+  color: var(--color-button-text);
+  border-top: 2px solid var(--color-button-highlight);
+  border-left: 2px solid var(--color-button-highlight);
+  border-right: 2px solid var(--color-button-dark-shadow);
+  border-bottom: 2px solid var(--color-button-dark-shadow);
+  padding: 7px 18px;
+  cursor: pointer;
+  min-width: 75px;
+  text-align: center;
+  outline: none;
+}
+
+.xp-btn:active {
+  border-top: 2px solid var(--color-button-dark-shadow);
+  border-left: 2px solid var(--color-button-dark-shadow);
+  border-right: 2px solid var(--color-button-highlight);
+  border-bottom: 2px solid var(--color-button-highlight);
+  padding: 7px 15px 5px 17px;
+}
+
+.xp-btn:focus {
+  outline: 1px dotted var(--color-button-text);
+  outline-offset: -4px;
+}
+
+.xp-btn-large {
+  font-size: 15px;
+  font-weight: bold;
+  padding: 14px 24px;
+  min-width: 200px;
+  min-height: 70px;
+}
+
+.xp-btn-primary {
+  background: var(--color-accent);
+  color: var(--color-accent-text);
+  border-top: 2px solid #4080ff;
+  border-left: 2px solid #4080ff;
+  border-right: 2px solid #000040;
+  border-bottom: 2px solid #000040;
+}
+
+.xp-btn-primary:active {
+  border-top: 2px solid #000040;
+  border-left: 2px solid #000040;
+  border-right: 2px solid #4080ff;
+  border-bottom: 2px solid #4080ff;
+}
+
+/* ============================================
+   MODE SELECTION CARD
+   ============================================ */
+.xp-mode-card {
+  text-align: left;
+  padding: 12px;
+  height: auto;
+  line-height: 1.4;
+  position: relative;
+  transition: transform 0.08s ease, background 0.12s ease, box-shadow 0.12s ease;
+}
+
+.xp-mode-card:hover {
+  background: var(--color-button-highlight);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.35);
+}
+
+.xp-mode-card:active {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+.xp-mode-card-featured {
+  border-top: 2px solid var(--color-accent);
+  border-left: 2px solid var(--color-accent);
+  border-right: 2px solid var(--color-accent);
+  border-bottom: 2px solid var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 12%, var(--color-button-face));
+}
+
+.xp-mode-card-featured:active {
+  border-top: 2px solid var(--color-accent);
+  border-left: 2px solid var(--color-accent);
+  border-right: 2px solid var(--color-accent);
+  border-bottom: 2px solid var(--color-accent);
+}
+
+.xp-mode-card-badge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  font-size: 9px;
+  font-weight: bold;
+  letter-spacing: 0.5px;
+  padding: 2px 6px;
+  background: var(--color-accent);
+  color: var(--color-accent-text);
+  border-radius: 2px;
+}
