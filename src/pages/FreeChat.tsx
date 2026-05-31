@@ -329,7 +329,7 @@ export function FreeChat() {
                   {listening ? '⏹' : '🎤'}
                 </button>
               )}
-              <button className="xp-btn xp-btn-primary" disabled={loading || !draft.trim()} onClick={send}>Send</button>
+              <button className="xp-btn xp-btn-primary" disabled={loading || !draft.trim()} onClick={() => send()}>Send</button>
             </div>
 
             <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
