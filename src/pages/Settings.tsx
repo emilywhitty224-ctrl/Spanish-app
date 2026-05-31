@@ -14,9 +14,16 @@ const THEMES: { id: Theme; label: string }[] = [
 
 export function Settings() {
   const navigate = useNavigate()
-  const { activeTheme, setActiveTheme, voiceURI, setVoiceURI, speechRate, setSpeechRate } = useStore()
+  const {
+    activeTheme, setActiveTheme,
+    voiceURI, setVoiceURI,
+    speechRate, setSpeechRate,
+    aiProvider, setAiProvider,
+    aiApiKey, setAiApiKey,
+  } = useStore()
 
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([])
+  const [showKey, setShowKey] = useState(false)
 
   useEffect(() => {
     return onVoicesReady(() => setVoices(getSpanishVoices()))
@@ -102,6 +109,50 @@ export function Settings() {
               </button>
             </section>
           )}
+
+          {/* AI free chat */}
+          <section>
+            <SectionTitle>AI Free Chat (optional)</SectionTitle>
+            <p style={{ fontSize: '11px', color: '#888', marginBottom: '8px' }}>
+              Paste an API key to unlock unlimited freeform chat with Barny. Key is stored locally on this device only.
+            </p>
+            <div style={{ display: 'flex', gap: '4px', marginBottom: '8px' }}>
+              {(['gemini', 'anthropic'] as const).map((p) => (
+                <button
+                  key={p}
+                  className={`xp-btn${aiProvider === p ? ' xp-btn-primary' : ''}`}
+                  style={{ flex: 1, fontSize: '12px', padding: '6px 8px' }}
+                  onClick={() => setAiProvider(p)}
+                >
+                  {p === 'gemini' ? 'Gemini Flash' : 'Claude Haiku'}
+                </button>
+              ))}
+            </div>
+            <div style={{ display: 'flex', gap: '4px' }}>
+              <input
+                type={showKey ? 'text' : 'password'}
+                value={aiApiKey ?? ''}
+                placeholder={aiProvider === 'gemini' ? 'AIza…' : 'sk-ant-…'}
+                onChange={(e) => setAiApiKey(e.target.value || null)}
+                style={{
+                  flex: 1, padding: '8px 10px', fontSize: '12px',
+                  fontFamily: 'var(--font-ui)', background: '#1a1a1a',
+                  border: '2px solid var(--color-accent)', borderRadius: '3px',
+                  color: '#fff', boxSizing: 'border-box', outline: 'none',
+                }}
+              />
+              <button
+                className="xp-btn"
+                style={{ fontSize: '11px', minWidth: 'auto', padding: '4px 10px' }}
+                onClick={() => setShowKey((s) => !s)}
+              >
+                {showKey ? '🙈' : '👁'}
+              </button>
+            </div>
+            <p style={{ fontSize: '10px', color: '#666', marginTop: '6px' }}>
+              Gemini: aistudio.google.com/apikey · Anthropic: console.anthropic.com
+            </p>
+          </section>
 
           <button className="xp-btn" onClick={() => navigate('/dashboard')}>← Dashboard</button>
         </div>

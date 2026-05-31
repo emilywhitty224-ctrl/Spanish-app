@@ -5,11 +5,20 @@ import { XpWindow } from '../components/XpWindow'
 import { Barny } from '../components/Barny'
 import type { VocabularyItem } from '../types/vocabulary'
 
+type Source = 'class' | 'app' | 'real-life'
+
 interface PendingCard {
   id: string
   spanish: string
   english: string
+  source: Source
 }
+
+const SOURCES: { id: Source; label: string; icon: string }[] = [
+  { id: 'class',     label: 'Class',     icon: '📝' },
+  { id: 'real-life', label: 'Real life', icon: '🇪🇸' },
+  { id: 'app',       label: 'Other',     icon: '💡' },
+]
 
 const BUCKETS: { type: VocabularyItem['type']; label: string; icon: string }[] = [
   { type: 'noun', label: 'Noun', icon: '📦' },
@@ -20,10 +29,11 @@ const BUCKETS: { type: VocabularyItem['type']; label: string; icon: string }[] =
 
 export function AddWords() {
   const navigate = useNavigate()
-  const { customWords, addCustomWord, removeCustomWord } = useStore()
+  const { customWords, addCustomWord, removeCustomWord, toggleActiveUse } = useStore()
 
   const [spanish, setSpanish] = useState('')
   const [english, setEnglish] = useState('')
+  const [source, setSource] = useState<Source>('class')
   const [pending, setPending] = useState<PendingCard[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [dragOver, setDragOver] = useState<string | null>(null)
@@ -38,6 +48,7 @@ export function AddWords() {
         id: `pending-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
         spanish: spanish.trim(),
         english: english.trim(),
+        source,
       },
     ])
     setSpanish('')
@@ -52,10 +63,13 @@ export function AddWords() {
       spanish_word: card.spanish,
       english_translation: card.english,
       type,
-      tags: ['custom'],
+      tags: ['custom', card.source],
       mastery_level: 0,
       next_review_date: new Date().toISOString(),
       beginner_safe: true,
+      source: card.source,
+      added_at: new Date().toISOString(),
+      active_use: false,
     })
     setPending((prev) => prev.filter((c) => c.id !== cardId))
     if (selectedId === cardId) setSelectedId(null)
@@ -100,6 +114,30 @@ export function AddWords() {
                 onKeyDown={(e) => { if (e.key === 'Enter') handleCreate() }}
               />
             </label>
+            <div>
+              <div style={{ fontSize: '12px', color: '#888', marginBottom: '4px' }}>Where from?</div>
+              <div style={{ display: 'flex', gap: '4px' }}>
+                {SOURCES.map((s) => {
+                  const active = source === s.id
+                  return (
+                    <button
+                      key={s.id}
+                      type="button"
+                      className="xp-btn"
+                      style={{
+                        flex: 1, fontSize: '12px', padding: '6px 4px',
+                        border: `2px solid ${active ? 'var(--color-accent)' : 'var(--color-button-shadow)'}`,
+                        background: active ? 'rgba(120,200,120,0.15)' : undefined,
+                      }}
+                      onClick={() => setSource(s.id)}
+                    >
+                      {s.icon} {s.label}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
             <button
               className="xp-btn xp-btn-primary"
               disabled={!canCreate}
@@ -207,15 +245,29 @@ export function AddWords() {
                     <span>
                       <strong style={{ color: 'var(--color-accent)' }}>{w.spanish_word}</strong>
                       <span style={{ color: '#888' }}> — {w.english_translation}</span>
-                      <span style={{ color: '#666', fontSize: '10px' }}> · {w.type}</span>
+                      <span style={{ color: '#666', fontSize: '10px' }}> · {w.type}{w.source ? ` · ${w.source}` : ''}</span>
                     </span>
-                    <button
-                      className="xp-btn"
-                      style={{ fontSize: '11px', minWidth: 'auto', padding: '2px 8px' }}
-                      onClick={() => removeCustomWord(w.id)}
-                    >
-                      ✕
-                    </button>
+                    <span style={{ display: 'inline-flex', gap: '4px' }}>
+                      <button
+                        className="xp-btn"
+                        title={w.active_use ? 'Marked active — tap to unmark' : 'Mark as actively used'}
+                        style={{
+                          fontSize: '11px', minWidth: 'auto', padding: '2px 8px',
+                          border: `2px solid ${w.active_use ? 'var(--color-accent)' : 'var(--color-button-shadow)'}`,
+                          background: w.active_use ? 'rgba(120,200,120,0.18)' : undefined,
+                        }}
+                        onClick={() => toggleActiveUse(w.id)}
+                      >
+                        💪
+                      </button>
+                      <button
+                        className="xp-btn"
+                        style={{ fontSize: '11px', minWidth: 'auto', padding: '2px 8px' }}
+                        onClick={() => removeCustomWord(w.id)}
+                      >
+                        ✕
+                      </button>
+                    </span>
                   </div>
                 ))}
               </div>

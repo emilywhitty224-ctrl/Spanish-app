@@ -4,6 +4,8 @@ import { XpWindow } from '../components/XpWindow'
 import { useVocab } from '../data/useVocab'
 import { weakestFirst } from '../utils/srs'
 
+const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000
+
 export function Dashboard() {
   const { userProfile, stats } = useStore()
   const srs = useStore((s) => s.srs[s.userProfile])
@@ -22,6 +24,13 @@ export function Dashboard() {
     return entry !== undefined && entry.nextReview <= today
   }).length
   const weakest = weakestFirst(vocab, srs).slice(0, 5)
+
+  // Passive vs active: class words seen this week (input) vs words you can actively use (output).
+  const cutoff = Date.now() - ONE_WEEK_MS
+  const passiveThisWeek = vocab.filter((v) =>
+    v.source === 'class' && v.added_at && new Date(v.added_at).getTime() >= cutoff
+  ).length
+  const activeCount = vocab.filter((v) => v.active_use).length
 
   return (
     <div style={{
@@ -52,10 +61,14 @@ export function Dashboard() {
           </div>
 
           {/* Stats strip */}
-          <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
             <StatBox label="Day streak" value={`${myStats.streak} 🔥`} />
             <StatBox label="Accuracy" value={myStats.totalAnswered > 0 ? `${accuracy}%` : '—'} />
             <StatBox label="Due today" value={`${dueToday}`} />
+          </div>
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+            <StatBox label="Class words (7d)" value={`${passiveThisWeek} 👀`} />
+            <StatBox label="Active vocab" value={`${activeCount} 💪`} />
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -78,6 +91,39 @@ export function Dashboard() {
               <div style={{ fontSize: '16px', marginBottom: '4px' }}>🧠 Campaign 2: The Long Haul</div>
               <div style={{ fontSize: '12px', fontWeight: 'normal', color: '#444' }}>
                 Spaced repetition — words you need to drill for long-term retention
+              </div>
+            </button>
+
+            <button
+              className="xp-btn xp-btn-large"
+              style={{ width: '100%', textAlign: 'left', padding: '12px 16px' }}
+              onClick={() => navigate('/campaign/chat-with-barny')}
+            >
+              <div style={{ fontSize: '16px', marginBottom: '4px' }}>💬 Campaign 3: Chat with Barny</div>
+              <div style={{ fontSize: '12px', fontWeight: 'normal', color: '#444' }}>
+                Hold a short Spanish conversation — pick replies, build fluency
+              </div>
+            </button>
+
+            <button
+              className="xp-btn xp-btn-large"
+              style={{ width: '100%', textAlign: 'left', padding: '12px 16px' }}
+              onClick={() => navigate('/campaign/free-chat')}
+            >
+              <div style={{ fontSize: '16px', marginBottom: '4px' }}>🤖 Campaign 4: Free Chat (AI)</div>
+              <div style={{ fontSize: '12px', fontWeight: 'normal', color: '#444' }}>
+                Unlimited freeform chat — type your own replies, get instant feedback
+              </div>
+            </button>
+
+            <button
+              className="xp-btn xp-btn-large"
+              style={{ width: '100%', textAlign: 'left', padding: '12px 16px' }}
+              onClick={() => navigate('/lesson')}
+            >
+              <div style={{ fontSize: '16px', marginBottom: '4px' }}>📘 Campaign 5: Lessons</div>
+              <div style={{ fontSize: '12px', fontWeight: 'normal', color: '#444' }}>
+                Quick (5m) or Full (15m) — drill + chat tied to your weakest words
               </div>
             </button>
 

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import dog1 from '../assets/dog1.png'
 import dog2 from '../assets/dog2.png'
 import dog3 from '../assets/dog3.png'
@@ -28,6 +28,7 @@ interface BarnyProps {
   message?: string
   size?: 'small' | 'medium' | 'large'
   pose?: BarneyPose
+  wordIdx?: number
 }
 
 const SIZE_PX: Record<string, number> = {
@@ -302,7 +303,24 @@ const RANDOM_QUIPS = [
   '"¡Hasta luego!" — see you later! Barny will be here. Waiting. Always waiting. 🦴',
 ]
 
-export function Barny({ message, size = 'medium', pose }: BarnyProps) {
+const ALL_DOGS = [dog1, dog2, dog3, dog4, dog5, dog6, dog7, dog8, dog10, dog11, dog12]
+
+export function RotatingBarnyIcon({ size = 18 }: { size?: number }) {
+  const [idx, setIdx] = useState(0)
+  useEffect(() => {
+    const id = setInterval(() => setIdx((i) => (i + 1) % ALL_DOGS.length), 100000)
+    return () => clearInterval(id)
+  }, [])
+  return (
+    <img
+      src={ALL_DOGS[idx]}
+      alt="Barny"
+      style={{ width: size, height: size, objectFit: 'contain', display: 'inline-block', verticalAlign: 'middle', transform: 'scaleX(-1)' }}
+    />
+  )
+}
+
+export function Barny({ message, size = 'medium', pose, wordIdx = -1 }: BarnyProps) {
   const [randomSrc] = useState(() => FRIENDLY_DOGS[Math.floor(Math.random() * FRIENDLY_DOGS.length)])
   const [resolvedMessage] = useState(() => message ?? RANDOM_QUIPS[Math.floor(Math.random() * RANDOM_QUIPS.length)])
   const src = pose ? POSE_DOG[pose] : randomSrc
@@ -318,7 +336,7 @@ export function Barny({ message, size = 'medium', pose }: BarnyProps) {
           src={src}
           alt="Barny the dog"
           width={px}
-          style={{ width: px, height: 'auto', display: 'block' }}
+          style={{ width: px, height: 'auto', display: 'block', transform: 'scaleX(-1)' }}
         />
       </div>
 
@@ -347,7 +365,16 @@ export function Barny({ message, size = 'medium', pose }: BarnyProps) {
             boxShadow: '2px 2px 0 rgba(0,0,0,0.2)',
             borderRadius: '4px',
           }}>
-            {resolvedMessage}
+            {wordIdx >= 0
+              ? resolvedMessage.split(/\s+/).map((w, i) => (
+                  <span key={i} style={{
+                    textDecoration: i === wordIdx ? 'underline' : 'none',
+                    textDecorationThickness: '2px',
+                    transition: 'text-decoration 0.1s',
+                  }}>{w}{' '}</span>
+                ))
+              : resolvedMessage
+            }
           </div>
         </div>
       )}

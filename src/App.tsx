@@ -7,6 +7,9 @@ import { Dashboard } from './pages/Dashboard'
 import { PlaceholderPage } from './pages/PlaceholderPage'
 import { WeeklySprint } from './pages/WeeklySprint'
 import { LongHaul } from './pages/LongHaul'
+import { ChatWithBarny } from './pages/ChatWithBarny'
+import { FreeChat } from './pages/FreeChat'
+import { Lesson } from './pages/Lesson'
 import { AddWords } from './pages/AddWords'
 import { Settings } from './pages/Settings'
 import './index.css'
@@ -29,6 +32,9 @@ function AppShell() {
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/campaign/weekly-sprint" element={<WeeklySprint />} />
         <Route path="/campaign/long-haul" element={<LongHaul />} />
+        <Route path="/campaign/chat-with-barny" element={<ChatWithBarny />} />
+        <Route path="/campaign/free-chat" element={<FreeChat />} />
+        <Route path="/lesson" element={<Lesson />} />
         <Route path="/add-words" element={<AddWords />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/campaign/:mode" element={<PlaceholderPage />} />

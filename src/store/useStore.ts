@@ -4,6 +4,7 @@ import type { VocabularyItem } from '../types/vocabulary'
 
 export type UserProfile = 'Emily' | 'Jocelyn'
 export type Theme = 'WindowsXP' | 'Space' | 'Dinosaurs' | 'Sharks'
+export type AiProvider = 'gemini' | 'anthropic'
 
 export interface ProfileStats {
   totalCorrect: number
@@ -64,6 +65,8 @@ interface AppState {
   activeTheme: Theme
   voiceURI: string | null
   speechRate: number
+  aiProvider: AiProvider
+  aiApiKey: string | null
   stats: Record<UserProfile, ProfileStats>
   customWords: VocabularyItem[]
   srs: Record<UserProfile, Record<string, SrsEntry>>
@@ -71,9 +74,12 @@ interface AppState {
   setActiveTheme: (theme: Theme) => void
   setVoiceURI: (uri: string | null) => void
   setSpeechRate: (rate: number) => void
+  setAiProvider: (provider: AiProvider) => void
+  setAiApiKey: (key: string | null) => void
   recordResult: (mode: string, correct: number, total: number) => void
   addCustomWord: (word: VocabularyItem) => void
   removeCustomWord: (id: string) => void
+  toggleActiveUse: (id: string) => void
   reviewWord: (wordId: string, remembered: boolean) => void
   getSnapshot: () => SyncSnapshot
   applySnapshot: (snapshot: SyncSnapshot) => void
@@ -86,6 +92,8 @@ export const useStore = create<AppState>()(
       activeTheme: 'WindowsXP',
       voiceURI: null,
       speechRate: 0.9,
+      aiProvider: 'gemini',
+      aiApiKey: null,
       stats: { Emily: emptyStats(), Jocelyn: emptyStats() },
       customWords: [],
       srs: { Emily: {}, Jocelyn: {} },
@@ -94,6 +102,8 @@ export const useStore = create<AppState>()(
       setActiveTheme: (theme) => set({ activeTheme: theme }),
       setVoiceURI: (uri) => set({ voiceURI: uri }),
       setSpeechRate: (rate) => set({ speechRate: rate }),
+      setAiProvider: (provider) => set({ aiProvider: provider }),
+      setAiApiKey: (key) => set({ aiApiKey: key }),
 
       recordResult: (mode, correct, total) =>
         set((state) => {
@@ -133,6 +143,13 @@ export const useStore = create<AppState>()(
 
       removeCustomWord: (id) =>
         set((state) => ({ customWords: state.customWords.filter((w) => w.id !== id) })),
+
+      toggleActiveUse: (id) =>
+        set((state) => ({
+          customWords: state.customWords.map((w) =>
+            w.id === id ? { ...w, active_use: !w.active_use } : w
+          ),
+        })),
 
       reviewWord: (wordId, remembered) =>
         set((state) => {

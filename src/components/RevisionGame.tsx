@@ -7,7 +7,7 @@ import { useStore } from '../store/useStore'
 import { pickDueFirst } from '../utils/srs'
 import { checkAnswer } from '../utils/answerCheck'
 import { getHint } from '../utils/hints'
-import { speak, speechSupported } from '../utils/speak'
+import { speak, speechSupported, recognitionSupported, startListening, applySpanishPunctuation, describeRecognitionError } from '../utils/speak'
 import { SENTENCES, pickSentences, tokenize, type Sentence } from '../data/sentences'
 import type { VocabularyItem } from '../types/vocabulary'
 
@@ -274,6 +274,9 @@ export function RevisionGame({ title, icon, vocab: allVocab, deckLabel, exitTo, 
   const [clozeChosen, setClozeChosen] = useState<string | null>(null)
   const [tiles, setTiles] = useState<{ id: number; word: string }[]>([])
   const [built, setBuilt] = useState<number[]>([])
+  const [dictListening, setDictListening] = useState(false)
+  const [dictMicError, setDictMicError] = useState<string | null>(null)
+  const dictStopRef = useRef<(() => void) | null>(null)
 
   // Score override for non-sequential modes
   const [resultScore, setResultScore] = useState<{ correct: number; total: number } | null>(null)
@@ -854,29 +857,71 @@ export function RevisionGame({ title, icon, vocab: allVocab, deckLabel, exitTo, 
                 >
                   ▶ Play again
                 </button>
-                <input
-                  type="text"
-                  value={sentTyped}
-                  disabled={sentFeedback !== null}
-                  placeholder="Type the Spanish sentence…"
-                  onChange={(e) => setSentTyped(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && sentFeedback === null && sentTyped.trim()) {
-                      const verdict = checkAnswer(sentTyped, q.spanish)
-                      const state = verdict === 'wrong' ? 'incorrect' : verdict
-                      setSentFeedback(state)
-                      if (state === 'correct') setTimeout(() => advanceSentence('correct'), 800)
-                      else if (state === 'almost') setTimeout(() => advanceSentence('correct'), 1500)
-                    }
-                  }}
-                  style={{
-                    width: '100%', padding: '8px 10px', fontSize: '14px',
-                    fontFamily: 'var(--font-ui)', background: '#1a1a1a',
-                    border: `2px solid ${sentFeedback === 'correct' ? '#4caf50' : sentFeedback === 'almost' ? '#ff9800' : sentFeedback === 'incorrect' ? '#e53935' : 'var(--color-accent)'}`,
-                    borderRadius: '3px', color: '#fff', boxSizing: 'border-box',
-                    marginBottom: '10px', outline: 'none',
-                  }}
-                />
+                <div style={{ display: 'flex', gap: '6px', marginBottom: '10px' }}>
+                  <input
+                    type="text"
+                    value={sentTyped}
+                    disabled={sentFeedback !== null}
+                    placeholder={dictListening ? '🎤 Listening… (say "punto" / "coma" / "interrogación")' : 'Type the Spanish sentence…'}
+                    onChange={(e) => setSentTyped(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && sentFeedback === null && sentTyped.trim()) {
+                        const verdict = checkAnswer(sentTyped, q.spanish)
+                        const state = verdict === 'wrong' ? 'incorrect' : verdict
+                        setSentFeedback(state)
+                        if (state === 'correct') setTimeout(() => advanceSentence('correct'), 800)
+                        else if (state === 'almost') setTimeout(() => advanceSentence('correct'), 1500)
+                      }
+                    }}
+                    style={{
+                      flex: 1, padding: '8px 10px', fontSize: '14px',
+                      fontFamily: 'var(--font-ui)', background: '#1a1a1a',
+                      border: `2px solid ${sentFeedback === 'correct' ? '#4caf50' : sentFeedback === 'almost' ? '#ff9800' : sentFeedback === 'incorrect' ? '#e53935' : dictListening ? '#2196f3' : 'var(--color-accent)'}`,
+                      borderRadius: '3px', color: '#fff', boxSizing: 'border-box',
+                      outline: 'none',
+                    }}
+                  />
+                  {recognitionSupported && (
+                    <button
+                      className={`xp-btn${dictListening ? ' mic-listening' : ''}`}
+                      disabled={sentFeedback !== null}
+                      title={dictListening ? 'Stop listening — say "punto", "coma", "interrogación" for punctuation' : 'Speak the Spanish sentence — say "punto", "coma", "interrogación" for punctuation'}
+                      style={{
+                        minWidth: 'auto', padding: '4px 10px',
+                        border: `2px solid ${dictListening ? '#2196f3' : 'var(--color-accent)'}`,
+                        color: dictListening ? '#2196f3' : undefined,
+                      }}
+                      onClick={() => {
+                        if (dictListening) {
+                          dictStopRef.current?.()
+                          setDictListening(false)
+                          return
+                        }
+                        setDictMicError(null)
+                        setDictListening(true)
+                        dictStopRef.current = startListening(
+                          (text, isFinal) => {
+                            setSentTyped(isFinal ? applySpanishPunctuation(text) : text)
+                            if (isFinal) setDictListening(false)
+                          },
+                          (errorReason) => {
+                            setDictListening(false)
+                            if (errorReason) {
+                              const msg = describeRecognitionError(errorReason)
+                              if (msg) setDictMicError(msg)
+                            }
+                          },
+                          'es-ES',
+                        )
+                      }}
+                    >
+                      {dictListening ? '⏹' : '🎤'}
+                    </button>
+                  )}
+                </div>
+                {dictMicError && (
+                  <p style={{ fontSize: '11px', color: '#ff9800', margin: '0 0 8px' }}>🎤 {dictMicError}</p>
+                )}
                 {sentFeedback === 'correct' && (
                   <p style={{ fontSize: '13px', color: '#4caf50', margin: '0 0 8px' }}>¡Perfecto! ✓</p>
                 )}
@@ -938,9 +983,34 @@ export function RevisionGame({ title, icon, vocab: allVocab, deckLabel, exitTo, 
                 <p style={{ fontSize: '11px', color: '#888', marginBottom: '6px', textAlign: 'center' }}>
                   Tap tiles in order to translate:
                 </p>
-                <p style={{ fontSize: '16px', color: 'var(--color-accent)', textAlign: 'center', margin: '0 0 14px' }}>
+                <p style={{ fontSize: '16px', color: 'var(--color-accent)', textAlign: 'center', margin: '0 0 8px' }}>
                   "{q.english}"
                 </p>
+                <div style={{ display: 'flex', gap: '6px', justifyContent: 'center', marginBottom: '12px' }}>
+                  {speechSupported && (
+                    <button
+                      className="xp-btn"
+                      style={{ fontSize: '11px', padding: '3px 9px' }}
+                      onClick={() => speak(q.spanish)}
+                      disabled={showFeedback}
+                    >
+                      🔊 Listen
+                    </button>
+                  )}
+                  <button
+                    className="xp-btn"
+                    style={{ fontSize: '11px', padding: '3px 9px' }}
+                    disabled={showFeedback || built.length > 0}
+                    title="Place the first word for you"
+                    onClick={() => {
+                      const firstWord = expected[0]
+                      const tile = tiles.find((t) => t.word === firstWord && !built.includes(t.id))
+                      if (tile) setBuilt([tile.id])
+                    }}
+                  >
+                    💡 Hint
+                  </button>
+                </div>
 
                 {/* Built sentence area */}
                 <div style={{
@@ -1148,6 +1218,7 @@ export function RevisionGame({ title, icon, vocab: allVocab, deckLabel, exitTo, 
                   hint={getHint(current.item)}
                   onSubmit={() => submitFill(false)}
                   onNext={() => advance('incorrect')}
+                  speechLang="en-US"
                 />
               )}
 
@@ -1162,6 +1233,7 @@ export function RevisionGame({ title, icon, vocab: allVocab, deckLabel, exitTo, 
                   hint={getHint(current.item)}
                   onSubmit={() => submitFill(true)}
                   onNext={() => advance('incorrect')}
+                  speechLang="es-ES"
                 />
               )}
 
@@ -1225,31 +1297,81 @@ interface FillInputProps {
   hint: string | null
   onSubmit: () => void
   onNext: () => void
+  speechLang?: string
 }
 
-function FillInput({ typed, setTyped, feedback, answer, placeholder, hint, onSubmit, onNext }: FillInputProps) {
+function FillInput({ typed, setTyped, feedback, answer, placeholder, hint, onSubmit, onNext, speechLang }: FillInputProps) {
+  const [listening, setListening] = useState(false)
+  const [micError, setMicError] = useState<string | null>(null)
+  const stopRef = useRef<(() => void) | null>(null)
+
+  function toggleMic() {
+    if (listening) {
+      stopRef.current?.()
+      setListening(false)
+      return
+    }
+    setMicError(null)
+    setListening(true)
+    stopRef.current = startListening(
+      (text, isFinal) => {
+        setTyped(text)
+        if (isFinal) setListening(false)
+      },
+      (errorReason) => {
+        setListening(false)
+        if (errorReason) {
+          const msg = describeRecognitionError(errorReason)
+          if (msg) setMicError(msg)
+        }
+      },
+      speechLang,
+    )
+  }
+
   const borderColor =
     feedback === 'correct' ? '#4caf50' :
     feedback === 'almost'  ? '#ff9800' :
     feedback === 'incorrect' ? '#e53935' :
+    listening ? '#2196f3' :
     'var(--color-accent)'
   return (
     <div style={{ marginTop: '16px' }}>
-      <input
-        type="text"
-        value={typed}
-        disabled={feedback !== null}
-        placeholder={placeholder}
-        onChange={(e) => setTyped(e.target.value)}
-        onKeyDown={(e) => { if (e.key === 'Enter') onSubmit() }}
-        style={{
-          width: '100%', padding: '8px 10px', fontSize: '14px',
-          fontFamily: 'var(--font-ui)', background: '#1a1a1a',
-          border: `2px solid ${borderColor}`,
-          borderRadius: '3px', color: '#fff', boxSizing: 'border-box',
-          marginBottom: '10px', outline: 'none',
-        }}
-      />
+      <div style={{ display: 'flex', gap: '6px', marginBottom: '10px' }}>
+        <input
+          type="text"
+          value={typed}
+          disabled={feedback !== null}
+          placeholder={listening ? '🎤 Listening…' : placeholder}
+          onChange={(e) => setTyped(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') onSubmit() }}
+          style={{
+            flex: 1, padding: '8px 10px', fontSize: '14px',
+            fontFamily: 'var(--font-ui)', background: '#1a1a1a',
+            border: `2px solid ${borderColor}`,
+            borderRadius: '3px', color: '#fff', boxSizing: 'border-box',
+            outline: 'none',
+          }}
+        />
+        {recognitionSupported && speechLang && (
+          <button
+            className={`xp-btn${listening ? ' mic-listening' : ''}`}
+            disabled={feedback !== null}
+            onClick={toggleMic}
+            title={listening ? 'Stop listening' : 'Speak your answer'}
+            style={{
+              minWidth: 'auto', padding: '4px 10px',
+              border: `2px solid ${listening ? '#2196f3' : 'var(--color-accent)'}`,
+              color: listening ? '#2196f3' : undefined,
+            }}
+          >
+            {listening ? '⏹' : '🎤'}
+          </button>
+        )}
+      </div>
+      {micError && (
+        <p style={{ fontSize: '11px', color: '#ff9800', margin: '0 0 8px' }}>🎤 {micError}</p>
+      )}
       {feedback === 'correct' && (
         <p style={{ fontSize: '13px', color: '#4caf50', margin: '0 0 8px' }}>Correct! ✓</p>
       )}

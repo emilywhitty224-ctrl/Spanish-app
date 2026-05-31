@@ -1,0 +1,222 @@
+import type { AiProvider } from '../store/useStore'
+
+export interface AiTurn {
+  /** 'barny' = AI line, 'user' = learner's typed Spanish. */
+  role: 'barny' | 'user'
+  spanish: string
+}
+
+export interface AiReply {
+  /** Barny's next line in Spanish. */
+  barnySpanish: string
+  /** Literal English translation of Barny's line. */
+  barnyEnglish: string
+  /** Feedback on the user's previous reply. Omitted on the opening turn. */
+  feedback?: {
+    outcome: 'good' | 'okay' | 'bad'
+    /** Short note in English explaining why; corrections, alternatives. */
+    explanation: string
+    /** Optional Spanish rewrite of the user's line if it was wrong. */
+    correction?: string
+  }
+}
+
+function systemPrompt(scenario: string): string {
+  return `You are Barny, a friendly cartoon dog who chats in Spanish with a beginner learner living in Valencia, Spain.
+
+Scenario: ${scenario}
+
+Rules:
+- Speak Castilian Spanish (Spain), CEFR A2 level. Keep each reply to 1–2 short sentences.
+- Stay in the scenario. Drive the conversation forward with natural follow-up questions.
+- After the user replies, judge their Spanish:
+  - "good"  = natural and correct
+  - "okay"  = understandable but awkward, wrong register, or minor grammar slip
+  - "bad"   = grammatically wrong, off-topic, or doesn't answer
+- If "okay" or "bad", provide a brief English explanation and a Spanish correction.
+- On the very first turn (no user message yet), omit "feedback".
+- Always respond with ONLY a JSON object matching this schema, no prose, no markdown fences:
+{
+  "barnySpanish": string,
+  "barnyEnglish": string,
+  "feedback": { "outcome": "good"|"okay"|"bad", "explanation": string, "correction": string } | null
+}`
+}
+
+function buildMessages(history: AiTurn[]): { role: 'user' | 'model'; text: string }[] {
+  return history.map((t) => ({
+    role: t.role === 'barny' ? 'model' : 'user',
+    text: t.spanish,
+  }))
+}
+
+function parseJsonReply(raw: string): AiReply {
+  // Strip code fences if the model added them despite instructions.
+  const cleaned = raw.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '')
+  const obj = JSON.parse(cleaned)
+  const reply: AiReply = {
+    barnySpanish: String(obj.barnySpanish ?? ''),
+    barnyEnglish: String(obj.barnyEnglish ?? ''),
+  }
+  if (obj.feedback && obj.feedback.outcome) {
+    reply.feedback = {
+      outcome: obj.feedback.outcome,
+      explanation: String(obj.feedback.explanation ?? ''),
+      correction: obj.feedback.correction ? String(obj.feedback.correction) : undefined,
+    }
+  }
+  return reply
+}
+
+async function callGemini(apiKey: string, scenario: string, history: AiTurn[]): Promise<AiReply> {
+  const messages = buildMessages(history)
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`
+  const body = {
+    systemInstruction: { parts: [{ text: systemPrompt(scenario) }] },
+    contents: messages.length > 0
+      ? messages.map((m) => ({ role: m.role, parts: [{ text: m.text }] }))
+      : [{ role: 'user', parts: [{ text: '(begin the conversation)' }] }],
+    generationConfig: { responseMimeType: 'application/json', temperature: 0.7 },
+  }
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) throw new Error(`Gemini ${res.status}: ${await res.text()}`)
+  const data = await res.json()
+  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text
+  if (!text) throw new Error('Gemini returned no text')
+  return parseJsonReply(text)
+}
+
+async function callAnthropic(apiKey: string, scenario: string, history: AiTurn[]): Promise<AiReply> {
+  const messages = history.length > 0
+    ? history.map((t) => ({
+        role: t.role === 'barny' ? 'assistant' : 'user',
+        content: t.spanish,
+      }))
+    : [{ role: 'user' as const, content: '(begin the conversation)' }]
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
+    },
+    body: JSON.stringify({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 400,
+      system: systemPrompt(scenario),
+      messages,
+    }),
+  })
+  if (!res.ok) throw new Error(`Anthropic ${res.status}: ${await res.text()}`)
+  const data = await res.json()
+  const text = data?.content?.[0]?.text
+  if (!text) throw new Error('Anthropic returned no text')
+  return parseJsonReply(text)
+}
+
+export async function chatWithAI(
+  provider: AiProvider,
+  apiKey: string,
+  scenario: string,
+  history: AiTurn[],
+): Promise<AiReply> {
+  if (provider === 'gemini') return callGemini(apiKey, scenario, history)
+  return callAnthropic(apiKey, scenario, history)
+}
+
+/**
+ * Lesson-mode chat. Same as chatWithAI but injects a vocab focus list so
+ * Barny keeps the conversation within the lesson's target words.
+ */
+export async function chatInLesson(
+  provider: AiProvider,
+  apiKey: string,
+  topicLabel: string,
+  vocabFocus: string[],
+  history: AiTurn[],
+): Promise<AiReply> {
+  const focusList = vocabFocus.slice(0, 30).join(', ')
+  const scenario = `You are Barny running a short Spanish micro-lesson on the topic "${topicLabel}". Stay tightly inside this topic.
+Vocabulary focus (use at least one of these in each reply, prefer them over synonyms): ${focusList}
+Keep replies extra short (1 sentence). End the lesson naturally after a few exchanges if the learner has shown they can use the words.`
+  return chatWithAI(provider, apiKey, scenario, history)
+}
+
+export interface SuggestedReply {
+  spanish: string
+  english: string
+  phonetic: string
+}
+
+const SUGGEST_SYSTEM = `You are a Spanish tutor helping a beginner learner respond in a conversation.
+Given the conversation so far, produce exactly 3 short possible Spanish replies the learner could send next.
+Each should be natural Castilian Spanish (Spain), CEFR A2 level, 1 sentence max.
+Vary the tone: one simple/safe, one slightly fuller, one with a question.
+For each reply, include "phonetic": a plain-letters pronunciation guide for an English speaker.
+  - Syllables joined by hyphens, stressed syllable in CAPS. Example: "¿Cómo estás?" → "KO-mo es-TAS".
+  - Use English-friendly approximations (e.g. "j" → "h", "ñ" → "ny", soft "c/z" → "th" for Castilian).
+Respond with ONLY a JSON array, no prose, no markdown:
+[{"spanish": "...", "english": "...", "phonetic": "..."}, ...]`
+
+async function callGeminiSuggest(apiKey: string, scenario: string, history: AiTurn[]): Promise<SuggestedReply[]> {
+  const messages = buildMessages(history)
+  // Gemini requires the last message to have role 'user'
+  if (messages.length === 0 || messages[messages.length - 1].role !== 'user') {
+    messages.push({ role: 'user', text: '(suggest my next reply)' })
+  }
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`
+  const body = {
+    systemInstruction: { parts: [{ text: SUGGEST_SYSTEM + `\n\nScenario: ${scenario}` }] },
+    contents: messages.map((m) => ({ role: m.role, parts: [{ text: m.text }] })),
+    generationConfig: { responseMimeType: 'application/json', temperature: 0.8 },
+  }
+  const res = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
+  if (!res.ok) throw new Error(`Gemini ${res.status}: ${await res.text()}`)
+  const data = await res.json()
+  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text
+  if (!text) throw new Error('Gemini returned no text')
+  const cleaned = text.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '')
+  return JSON.parse(cleaned)
+}
+
+async function callAnthropicSuggest(apiKey: string, scenario: string, history: AiTurn[]): Promise<SuggestedReply[]> {
+  const messages = history.length > 0
+    ? history.map((t) => ({ role: t.role === 'barny' ? 'assistant' : 'user', content: t.spanish }))
+    : [{ role: 'user' as const, content: '(begin the conversation)' }]
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
+    },
+    body: JSON.stringify({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 300,
+      system: SUGGEST_SYSTEM + `\n\nScenario: ${scenario}`,
+      messages,
+    }),
+  })
+  if (!res.ok) throw new Error(`Anthropic ${res.status}: ${await res.text()}`)
+  const data = await res.json()
+  const text = data?.content?.[0]?.text
+  if (!text) throw new Error('Anthropic returned no text')
+  const cleaned = text.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '')
+  return JSON.parse(cleaned)
+}
+
+export async function suggestReplies(
+  provider: AiProvider,
+  apiKey: string,
+  scenario: string,
+  history: AiTurn[],
+): Promise<SuggestedReply[]> {
+  if (provider === 'gemini') return callGeminiSuggest(apiKey, scenario, history)
+  return callAnthropicSuggest(apiKey, scenario, history)
+}
