@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useStore } from '../store/useStore'
 import { XpWindow } from '../components/XpWindow'
 import { Barny } from '../components/Barny'
+import { extractVocabFromNotes } from '../utils/aiChat'
 import type { VocabularyItem } from '../types/vocabulary'
 
 type Source = 'class' | 'app' | 'real-life'
@@ -29,7 +30,7 @@ const BUCKETS: { type: VocabularyItem['type']; label: string; icon: string }[] =
 
 export function AddWords() {
   const navigate = useNavigate()
-  const { customWords, addCustomWord, removeCustomWord, toggleActiveUse } = useStore()
+  const { customWords, addCustomWord, removeCustomWord, toggleActiveUse, aiProvider, aiApiKey } = useStore()
 
   const [spanish, setSpanish] = useState('')
   const [english, setEnglish] = useState('')
@@ -37,6 +38,61 @@ export function AddWords() {
   const [pending, setPending] = useState<PendingCard[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [dragOver, setDragOver] = useState<string | null>(null)
+
+  const [notes, setNotes] = useState('')
+  const [extracting, setExtracting] = useState(false)
+  const [extractError, setExtractError] = useState<string | null>(null)
+  const [extractMsg, setExtractMsg] = useState<string | null>(null)
+
+  async function handleExtract() {
+    if (!notes.trim() || extracting) return
+    if (!aiApiKey) { setExtractError('Paste an API key in Settings first.'); return }
+    setExtracting(true)
+    setExtractError(null)
+    setExtractMsg(null)
+    try {
+      const found = await extractVocabFromNotes(aiProvider, aiApiKey, notes.trim())
+      if (found.length === 0) { setExtractMsg('No Spanish words found in those notes.'); return }
+      const existing = new Set(customWords.map((w) => w.spanish_word.toLowerCase()))
+      let added = 0
+      for (const w of found) {
+        if (existing.has(w.spanish.toLowerCase())) continue
+        existing.add(w.spanish.toLowerCase())
+        addCustomWord({
+          id: `custom-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          spanish_word: w.spanish,
+          english_translation: w.english,
+          type: w.type,
+          tags: ['custom', source, 'from-notes'],
+          mastery_level: 0,
+          next_review_date: new Date().toISOString(),
+          beginner_safe: true,
+          source,
+          added_at: new Date().toISOString(),
+          active_use: false,
+        })
+        added++
+      }
+      const skipped = found.length - added
+      setExtractMsg(`Added ${added} word${added === 1 ? '' : 's'}${skipped ? ` (${skipped} already in your list)` : ''}.`)
+      setNotes('')
+    } catch (err) {
+      setExtractError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setExtracting(false)
+    }
+  }
+
+  async function handleFile(file: File) {
+    if (!file.type.startsWith('text/') && !file.name.match(/\.(txt|md|csv)$/i)) {
+      setExtractError('Only plain text files (.txt, .md, .csv) are supported.')
+      return
+    }
+    const text = await file.text()
+    setNotes((prev) => (prev ? `${prev}\n\n${text}` : text))
+    setExtractError(null)
+    setExtractMsg(null)
+  }
 
   const canCreate = spanish.trim() !== '' && english.trim() !== ''
 
@@ -91,6 +147,74 @@ export function AddWords() {
       <XpWindow title="Add Your Own Words" icon="➕" width="min(560px, 100%)" onClose={() => navigate('/dashboard')} style={{ flex: 1, maxHeight: 'none' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           <Barny message="Make a card, then drag it into the right box! 🐾" size="small" pose="happy" />
+
+          {/* From notes: paste or upload, AI extracts vocab */}
+          <details style={{
+            border: '2px solid var(--color-button-shadow)', borderRadius: '4px',
+            padding: '8px 10px', background: 'rgba(255,255,255,0.02)',
+          }}>
+            <summary style={{ cursor: 'pointer', fontSize: '13px', fontWeight: 'bold' }}>
+              📝 Add from lesson notes (AI)
+            </summary>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '8px' }}>
+              <p style={{ fontSize: '11px', color: '#888', margin: 0 }}>
+                Paste your notes — or upload a .txt/.md file — and {aiProvider === 'gemini' ? 'Gemini' : 'Claude'} will pull out the Spanish words and add them straight to your list.
+              </p>
+              <textarea
+                value={notes}
+                placeholder={'e.g.\nel mercado - market\ncomprar = to buy\n¿cuánto cuesta? how much is it'}
+                onChange={(e) => setNotes(e.target.value)}
+                rows={6}
+                style={{
+                  ...inputStyle, resize: 'vertical', minHeight: '90px',
+                  fontFamily: 'var(--font-ui)', lineHeight: 1.4,
+                }}
+              />
+              <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
+                <label className="xp-btn" style={{ fontSize: '12px', padding: '6px 10px', cursor: 'pointer' }}>
+                  📎 Upload
+                  <input
+                    type="file"
+                    accept=".txt,.md,.csv,text/plain,text/markdown,text/csv"
+                    style={{ display: 'none' }}
+                    onChange={(e) => {
+                      const f = e.target.files?.[0]
+                      if (f) handleFile(f)
+                      e.target.value = ''
+                    }}
+                  />
+                </label>
+                <button
+                  className="xp-btn xp-btn-primary"
+                  disabled={!notes.trim() || extracting || !aiApiKey}
+                  onClick={handleExtract}
+                  style={{ fontSize: '12px', padding: '6px 12px' }}
+                >
+                  {extracting ? 'Extracting…' : '✨ Extract words'}
+                </button>
+                {notes && (
+                  <button
+                    className="xp-btn"
+                    onClick={() => { setNotes(''); setExtractError(null); setExtractMsg(null) }}
+                    style={{ fontSize: '11px', padding: '4px 8px' }}
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+              {!aiApiKey && (
+                <p style={{ fontSize: '11px', color: '#d88', margin: 0 }}>
+                  Add an API key in Settings to use this.
+                </p>
+              )}
+              {extractError && (
+                <p style={{ fontSize: '11px', color: '#d88', margin: 0 }}>⚠ {extractError}</p>
+              )}
+              {extractMsg && (
+                <p style={{ fontSize: '11px', color: 'var(--color-accent)', margin: 0 }}>{extractMsg}</p>
+              )}
+            </div>
+          </details>
 
           {/* Step 1: type the pair */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>

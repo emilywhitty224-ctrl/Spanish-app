@@ -23,24 +23,25 @@ function today(): string {
  */
 export function pickDueFirst(
   vocab: VocabularyItem[],
-  srs: Record<string, SrsEntry>,
+  srs: Record<string, SrsEntry> | undefined,
   n: number,
 ): VocabularyItem[] {
   if (vocab.length === 0) return []
+  const safeSrs = srs ?? {}
   const t = today()
   const due: VocabularyItem[] = []
   const fresh: VocabularyItem[] = []
   const upcoming: { item: VocabularyItem; review: string }[] = []
 
   for (const v of vocab) {
-    const entry = srs[v.id]
+    const entry = safeSrs[v.id]
     if (!entry) fresh.push(v)
     else if (entry.nextReview <= t) due.push(v)
     else upcoming.push({ item: v, review: entry.nextReview })
   }
 
   const dueSorted = [...due].sort((a, b) =>
-    (srs[a.id]?.nextReview ?? '').localeCompare(srs[b.id]?.nextReview ?? ''),
+    (safeSrs[a.id]?.nextReview ?? '').localeCompare(safeSrs[b.id]?.nextReview ?? ''),
   )
   const upcomingSorted = upcoming
     .sort((a, b) => a.review.localeCompare(b.review))
@@ -63,11 +64,12 @@ export function pickDueFirst(
  */
 export function weakestFirst(
   vocab: VocabularyItem[],
-  srs: Record<string, SrsEntry>,
+  srs: Record<string, SrsEntry> | undefined,
 ): VocabularyItem[] {
+  const safeSrs = srs ?? {}
   return vocab
     .map((v) => {
-      const e = srs[v.id]
+      const e = safeSrs[v.id]
       const seen = e?.seen ?? 0
       const correct = e?.correct ?? 0
       return { v, seen, accuracy: seen > 0 ? correct / seen : 1 }

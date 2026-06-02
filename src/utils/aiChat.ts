@@ -220,3 +220,84 @@ export async function suggestReplies(
   if (provider === 'gemini') return callGeminiSuggest(apiKey, scenario, history)
   return callAnthropicSuggest(apiKey, scenario, history)
 }
+
+export interface ExtractedWord {
+  spanish: string
+  english: string
+  type: 'noun' | 'verb' | 'adjective' | 'phrase'
+}
+
+const EXTRACT_SYSTEM = `You extract Spanish vocabulary from a learner's messy lesson notes.
+
+Given notes (which may mix Spanish and English, bullet points, typos, definitions, example sentences, headings), output every distinct Spanish word or short phrase worth learning, with its English translation and a part-of-speech bucket.
+
+Rules:
+- Use Castilian Spanish (Spain) conventions.
+- For nouns, include the article (el / la / los / las). Example: "el perro".
+- For verbs, use the infinitive. Example: "comer".
+- Each entry's "type" must be exactly one of: "noun", "verb", "adjective", "phrase".
+  - "phrase" = anything multi-word that isn't a single noun-with-article (greetings, expressions, set phrases, short sentences).
+- Skip items already obvious (numbers 1–10, "hola", "sí", "no", "gracias") unless they appear with extra meaning in the notes.
+- Deduplicate. Don't invent words that aren't in the notes.
+- If the notes contain no extractable Spanish vocab, return [].
+
+Respond with ONLY a JSON array, no prose, no markdown:
+[{"spanish": "...", "english": "...", "type": "noun"}, ...]`
+
+function parseExtractJson(raw: string): ExtractedWord[] {
+  const cleaned = raw.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '')
+  const arr = JSON.parse(cleaned)
+  if (!Array.isArray(arr)) return []
+  const valid: ExtractedWord['type'][] = ['noun', 'verb', 'adjective', 'phrase']
+  return arr
+    .map((o: { spanish?: unknown; english?: unknown; type?: unknown }) => ({
+      spanish: String(o.spanish ?? '').trim(),
+      english: String(o.english ?? '').trim(),
+      type: (valid.includes(o.type as ExtractedWord['type']) ? o.type : 'phrase') as ExtractedWord['type'],
+    }))
+    .filter((w: ExtractedWord) => w.spanish && w.english)
+}
+
+export async function extractVocabFromNotes(
+  provider: AiProvider,
+  apiKey: string,
+  notes: string,
+): Promise<ExtractedWord[]> {
+  if (provider === 'gemini') {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: EXTRACT_SYSTEM }] },
+        contents: [{ role: 'user', parts: [{ text: notes }] }],
+        generationConfig: { responseMimeType: 'application/json', temperature: 0.2 },
+      }),
+    })
+    if (!res.ok) throw new Error(`Gemini ${res.status}: ${await res.text()}`)
+    const data = await res.json()
+    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text
+    if (!text) throw new Error('Gemini returned no text')
+    return parseExtractJson(text)
+  }
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
+    },
+    body: JSON.stringify({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 2000,
+      system: EXTRACT_SYSTEM,
+      messages: [{ role: 'user', content: notes }],
+    }),
+  })
+  if (!res.ok) throw new Error(`Anthropic ${res.status}: ${await res.text()}`)
+  const data = await res.json()
+  const text = data?.content?.[0]?.text
+  if (!text) throw new Error('Anthropic returned no text')
+  return parseExtractJson(text)
+}

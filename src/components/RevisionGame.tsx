@@ -209,7 +209,7 @@ export interface RevisionGameProps {
 export function RevisionGame({ title, icon, vocab: allVocab, deckLabel, exitTo, onWordResult }: RevisionGameProps) {
   const navigate = useNavigate()
   const recordResult = useStore((s) => s.recordResult)
-  const srs = useStore((s) => s.srs[s.userProfile])
+  const srs = useStore((s) => s.srs?.[s.userProfile] ?? {})
 
   const [category, setCategory] = useState<string>('all')
   const categories = useMemo(() => {
@@ -561,24 +561,41 @@ export function RevisionGame({ title, icon, vocab: allVocab, deckLabel, exitTo, 
               </button>
             </div>
             <div style={{ marginBottom: '4px' }}>
-              <Barny message="How would you like to revise today? 🐾" size="small" />
+              <Barny
+                message={vocab.length === 0
+                  ? "No words yet! Add some on the Add Words page and I'll be ready to drill you. 🐾"
+                  : "How would you like to revise today? 🐾"}
+                size="small"
+              />
             </div>
 
-            <div style={{ display: 'flex', gap: '6px', alignItems: 'center', overflowX: 'auto', flexShrink: 0, paddingBottom: '2px' }}>
-              <span style={{ fontSize: '11px', color: '#888', flexShrink: 0 }}>Topic:</span>
-              {['all', ...categories].map((cat) => (
-                <button
-                  key={cat}
-                  className={`xp-btn${category === cat ? ' xp-btn-primary' : ''}`}
-                  style={{ fontSize: '11px', minWidth: 'auto', padding: '3px 9px', flexShrink: 0 }}
-                  onClick={() => setCategory(cat)}
-                >
-                  {cat === 'all' ? 'All' : cat.replace(/_/g, ' ')}
-                </button>
-              ))}
-            </div>
+            {vocab.length === 0 && (
+              <button
+                className="xp-btn xp-btn-primary"
+                style={{ alignSelf: 'center', fontSize: '12px', padding: '6px 14px' }}
+                onClick={() => navigate('/add-words')}
+              >
+                ➕ Add words
+              </button>
+            )}
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {categories.length > 0 && (
+              <div style={{ display: 'flex', gap: '6px', alignItems: 'center', overflowX: 'auto', flexShrink: 0, paddingBottom: '2px' }}>
+                <span style={{ fontSize: '11px', color: '#888', flexShrink: 0 }}>Topic:</span>
+                {['all', ...categories].map((cat) => (
+                  <button
+                    key={cat}
+                    className={`xp-btn${category === cat ? ' xp-btn-primary' : ''}`}
+                    style={{ fontSize: '11px', minWidth: 'auto', padding: '3px 9px', flexShrink: 0 }}
+                    onClick={() => setCategory(cat)}
+                  >
+                    {cat === 'all' ? 'All' : cat.replace(/_/g, ' ')}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', opacity: vocab.length === 0 ? 0.4 : 1, pointerEvents: vocab.length === 0 ? 'none' : 'auto' }}>
               {MODES.map((m) => {
                 const featured = m.id === 'mixed'
                 return (
