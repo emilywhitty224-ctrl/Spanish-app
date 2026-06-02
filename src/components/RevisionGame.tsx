@@ -337,6 +337,25 @@ export function RevisionGame({ title, icon, vocab: allVocab, deckLabel, exitTo, 
 
   advanceFnRef.current = advance
 
+  function dontKnow() {
+    if (!current) return
+    if (current.format === 'flashcard') {
+      if (!flipped) setFlipped(true)
+      setTimeout(() => advance('incorrect'), 1200)
+    } else if (current.format === 'multiple-choice') {
+      if (chosen) return
+      setChosen('__dontknow__')
+      setTimeout(() => advance('incorrect'), 1000)
+    } else if (current.format === 'fill-in-the-blank' || current.format === 'reverse') {
+      if (fillFeedback) return
+      setFillFeedback('incorrect')
+    } else if (current.format === 'true-false') {
+      if (tfFeedback) return
+      setTfFeedback('incorrect')
+      setTimeout(() => advance('incorrect'), 1200)
+    }
+  }
+
   function answerGusta(choice: 'gusta' | 'gustan') {
     if (gustaChosen) return
     const q = gustaQs[gustaIndex]
@@ -452,6 +471,21 @@ export function RevisionGame({ title, icon, vocab: allVocab, deckLabel, exitTo, 
   useEffect(() => {
     if (phase === 'quiz' && mode === 'speed-round') setTimeLeft(SPEED_ROUND_SECONDS)
   }, [index]) // intentionally omits phase/mode — only fires on question change
+
+  // Auto-read the prompt aloud when a new quiz question appears.
+  // 'reverse' shows the English word, everything else shows the Spanish word.
+  useEffect(() => {
+    if (phase !== 'quiz' || !current) return
+    const t = setTimeout(() => {
+      if (current.format === 'reverse') {
+        speak(current.item.english_translation, undefined, 'en-US')
+      } else {
+        speak(current.item.spanish_word)
+      }
+    }, 250)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, index])
 
   // Matching: check pair when both sides selected
   useEffect(() => {
@@ -1292,6 +1326,22 @@ export function RevisionGame({ title, icon, vocab: allVocab, deckLabel, exitTo, 
                       )}
                     </>
                   )}
+                </div>
+              )}
+
+              {/* "I don't know" — shown until the learner commits to an answer */}
+              {((current.format === 'flashcard' && !flipped) ||
+                (current.format === 'multiple-choice' && !chosen) ||
+                ((current.format === 'fill-in-the-blank' || current.format === 'reverse') && !fillFeedback) ||
+                (current.format === 'true-false' && !tfFeedback)) && (
+                <div style={{ marginTop: '12px' }}>
+                  <button
+                    className="xp-btn"
+                    style={{ fontSize: '11px', padding: '4px 12px', minWidth: 'auto', color: '#bbb' }}
+                    onClick={dontKnow}
+                  >
+                    I don't know 🤷
+                  </button>
                 </div>
               )}
             </div>
