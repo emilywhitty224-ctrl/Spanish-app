@@ -75,22 +75,22 @@ export function Dashboard() {
             <button
               className="xp-btn xp-btn-large"
               style={{ width: '100%', textAlign: 'left', padding: '12px 16px' }}
-              onClick={() => navigate('/basics')}
+              onClick={() => navigate('/campaign/weekly-sprint')}
             >
-              <div style={{ fontSize: '16px', marginBottom: '4px' }}>🌱 Basics</div>
+              <div style={{ fontSize: '16px', marginBottom: '4px' }}>📅 Campaign 1: The Weekly Sprint</div>
               <div style={{ fontSize: '12px', fontWeight: 'normal', color: '#444' }}>
-                Family, numbers (0–1000), food &amp; drink — browse or practice
+                Review this week's vocabulary before it slips away
               </div>
             </button>
 
             <button
               className="xp-btn xp-btn-large"
               style={{ width: '100%', textAlign: 'left', padding: '12px 16px' }}
-              onClick={() => navigate('/campaign/weekly-sprint')}
+              onClick={() => navigate('/basics')}
             >
-              <div style={{ fontSize: '16px', marginBottom: '4px' }}>📅 Campaign 1: The Weekly Sprint</div>
+              <div style={{ fontSize: '16px', marginBottom: '4px' }}>🌱 Basics</div>
               <div style={{ fontSize: '12px', fontWeight: 'normal', color: '#444' }}>
-                Review this week's vocabulary before it slips away
+                Family, numbers (0–1000), food &amp; drink — browse or practice
               </div>
             </button>
 
