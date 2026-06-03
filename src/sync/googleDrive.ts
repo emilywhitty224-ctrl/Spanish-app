@@ -4,7 +4,7 @@
 
 const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined
 const API_KEY = import.meta.env.VITE_GOOGLE_API_KEY as string | undefined
-const SCOPE = 'https://www.googleapis.com/auth/drive.file'
+const SCOPE = 'https://www.googleapis.com/auth/drive.file email profile'
 
 export const DATA_FILE_NAME = 'spanish-app-data.json'
 export const driveConfigured = Boolean(CLIENT_ID && API_KEY)
@@ -16,9 +16,17 @@ declare global {
   }
 }
 
+export interface GoogleUserInfo {
+  id: string
+  email: string
+  name: string
+  picture: string
+}
+
 let tokenClient: any = null
 let accessToken: string | null = null
 let initPromise: Promise<void> | null = null
+let cachedUserInfo: GoogleUserInfo | null = null
 
 function loadScript(src: string): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -69,6 +77,16 @@ export function signOut(): void {
     window.google.accounts.oauth2.revoke(accessToken, () => {})
   }
   accessToken = null
+  cachedUserInfo = null
+}
+
+export async function fetchUserInfo(): Promise<GoogleUserInfo> {
+  const res = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+    headers: authHeaders(),
+  })
+  if (!res.ok) throw new Error('Could not fetch Google profile')
+  cachedUserInfo = await res.json()
+  return cachedUserInfo!
 }
 
 function authHeaders(): HeadersInit {

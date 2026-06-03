@@ -11,7 +11,9 @@ import {
   writeFile,
   shareFile as gShareFile,
   pickFile,
+  fetchUserInfo,
 } from './googleDrive'
+import type { GoogleUserInfo } from './googleDrive'
 
 const FILE_ID_KEY = 'spanish-app-drive-file-id'
 
@@ -23,6 +25,7 @@ interface SyncState {
   lastSynced: string | null
   busy: boolean
   error: string | null
+  userInfo: GoogleUserInfo | null
   connect: () => Promise<void>
   createFile: () => Promise<void>
   attachExisting: () => Promise<void>
@@ -42,6 +45,7 @@ export const useSync = create<SyncState>((set, get) => ({
   lastSynced: null,
   busy: false,
   error: null,
+  userInfo: null,
 
   connect: async () => {
     if (!driveConfigured) return
@@ -49,8 +53,15 @@ export const useSync = create<SyncState>((set, get) => ({
     try {
       await initGoogle()
       await gSignIn(true)
-      set({ status: get().fileId ? 'connected' : 'signed-in' })
-      if (get().fileId) await get().pull()
+      const info = await fetchUserInfo()
+      set({ userInfo: info })
+      if (get().fileId) {
+        set({ status: 'connected' })
+        await get().pull()
+      } else {
+        // First time: auto-create the sync file so notes are immediately saved
+        await get().createFile()
+      }
     } catch (e: any) {
       set({ error: e.message ?? 'Sign-in failed' })
     } finally {
@@ -135,7 +146,7 @@ export const useSync = create<SyncState>((set, get) => ({
   disconnect: () => {
     localStorage.removeItem(FILE_ID_KEY)
     gSignOut()
-    set({ status: 'signed-out', fileId: null, lastSynced: null })
+    set({ status: 'signed-out', fileId: null, lastSynced: null, userInfo: null })
   },
 }))
 

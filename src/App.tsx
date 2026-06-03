@@ -13,6 +13,7 @@ import { Lesson } from './pages/Lesson'
 import { AddWords } from './pages/AddWords'
 import { Basics } from './pages/Basics'
 import { Settings } from './pages/Settings'
+import { PreLessonBlitz } from './pages/PreLessonBlitz'
 import './index.css'
 
 function AppShell() {

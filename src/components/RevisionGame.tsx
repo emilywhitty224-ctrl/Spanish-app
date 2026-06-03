@@ -247,9 +247,10 @@ export interface RevisionGameProps {
   deckLabel: string
   exitTo: string
   onWordResult?: (wordId: string, correct: boolean) => void
+  autoStart?: RevisionMode
 }
 
-export function RevisionGame({ title, icon, vocab: allVocab, deckLabel, exitTo, onWordResult }: RevisionGameProps) {
+export function RevisionGame({ title, icon, vocab: allVocab, deckLabel, exitTo, onWordResult, autoStart }: RevisionGameProps) {
   const navigate = useNavigate()
   const recordResult = useStore((s) => s.recordResult)
   const srs = useStore((s) => s.srs?.[s.userProfile] ?? {})
@@ -267,8 +268,8 @@ export function RevisionGame({ title, icon, vocab: allVocab, deckLabel, exitTo, 
     [allVocab, category]
   )
 
-  const [phase, setPhase] = useState<'select' | 'quiz' | 'result' | 'matching' | 'memory' | 'gusta' | 'cloze' | 'dictation' | 'wordorder'>('select')
-  const [mode, setMode] = useState<RevisionMode>('mixed')
+  const [phase, setPhase] = useState<'select' | 'quiz' | 'result' | 'matching' | 'memory' | 'gusta' | 'cloze' | 'dictation' | 'wordorder'>(autoStart ? 'quiz' : 'select')
+  const [mode, setMode] = useState<RevisionMode>(autoStart ?? 'mixed')
 
   // Sequential quiz state
   const initialQuestions = useMemo(() => buildQuestions(pickDueFirst(vocab, srs, SEQUENTIAL_CAP), mode), [])
