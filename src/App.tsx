@@ -40,6 +40,7 @@ function AppShell() {
         <Route path="/add-words" element={<AddWords />} />
         <Route path="/basics" element={<Basics />} />
         <Route path="/settings" element={<Settings />} />
+        <Route path="/pre-lesson-blitz" element={<PreLessonBlitz />} />
         <Route path="/campaign/:mode" element={<PlaceholderPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
