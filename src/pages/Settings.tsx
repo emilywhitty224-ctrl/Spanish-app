@@ -5,6 +5,7 @@ import type { Theme } from '../store/useStore'
 import { XpWindow } from '../components/XpWindow'
 import { speak, speechSupported, getSpanishVoices, onVoicesReady } from '../utils/speak'
 import { useSync } from '../sync/useSync'
+import { initGoogle, driveConfigured } from '../sync/googleDrive'
 
 const THEMES: { id: Theme; label: string }[] = [
   { id: 'WindowsXP', label: 'Classic' },
@@ -189,6 +190,10 @@ export function Settings() {
 
 function GoogleSyncSection() {
   const { status, userInfo, busy, error, lastSynced, connect, disconnect } = useSync()
+
+  useEffect(() => {
+    if (driveConfigured) initGoogle().catch(() => {})
+  }, [])
 
   if (status === 'unconfigured') {
     return (
