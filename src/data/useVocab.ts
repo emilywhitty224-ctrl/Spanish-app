@@ -5,5 +5,8 @@ import type { VocabularyItem } from '../types/vocabulary'
 export const BASE_VOCAB = vocabData as VocabularyItem[]
 
 export function useVocab(): VocabularyItem[] {
-  return useStore((s) => s.customWords)
+  const customWords = useStore((s) => s.customWords)
+  const customIds = new Set(customWords.map((w) => w.id))
+  const base = BASE_VOCAB.filter((w) => !customIds.has(w.id))
+  return [...base, ...customWords]
 }
