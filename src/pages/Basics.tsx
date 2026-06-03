@@ -1,10 +1,10 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { XpWindow } from '../components/XpWindow'
-import { speak, speechSupported } from '../utils/speak'
+import { speak, speechSupported, recognitionSupported, startListening, describeRecognitionError } from '../utils/speak'
 
 type CategoryId = 'family' | 'numbers' | 'food'
-type Mode = 'browse' | 'practice'
+type Mode = 'browse' | 'practice' | 'challenge'
 
 interface Entry {
   spanish: string
@@ -192,6 +192,48 @@ function norm(s: string): string {
     .trim()
 }
 
+function numberToSpanish(n: number): string {
+  if (n === 0) return 'cero'
+  if (n === 100) return 'cien'
+  if (n === 1000) return 'mil'
+
+  const ones = [
+    '', 'uno', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 'ocho', 'nueve',
+    'diez', 'once', 'doce', 'trece', 'catorce', 'quince',
+    'dieciséis', 'diecisiete', 'dieciocho', 'diecinueve',
+    'veinte', 'veintiuno', 'veintidós', 'veintitrés', 'veinticuatro',
+    'veinticinco', 'veintiséis', 'veintisiete', 'veintiocho', 'veintinueve',
+  ]
+  const tens = ['', '', 'veinte', 'treinta', 'cuarenta', 'cincuenta', 'sesenta', 'setenta', 'ochenta', 'noventa']
+  const hundreds = ['', 'ciento', 'doscientos', 'trescientos', 'cuatrocientos', 'quinientos', 'seiscientos', 'setecientos', 'ochocientos', 'novecientos']
+
+  if (n <= 29) return ones[n]
+
+  if (n < 100) {
+    const t = Math.floor(n / 10)
+    const o = n % 10
+    return o === 0 ? tens[t] : `${tens[t]} y ${ones[o]}`
+  }
+
+  const h = Math.floor(n / 100)
+  const rest = n % 100
+  return rest === 0 ? hundreds[h] : `${hundreds[h]} ${numberToSpanish(rest)}`
+}
+
+const CHALLENGE_RANGES = {
+  easy:   [1,   20] as const,
+  medium: [1,  100] as const,
+  hard:   [1, 1000] as const,
+}
+type ChallengeRange = keyof typeof CHALLENGE_RANGES
+
+function randomNum(range: ChallengeRange, avoid?: number): number {
+  const [min, max] = CHALLENGE_RANGES[range]
+  let n: number
+  do { n = Math.floor(Math.random() * (max - min + 1)) + min } while (n === avoid)
+  return n
+}
+
 // Accept "la madre", "madre", or either side of "el zumo / el jugo".
 function isMatch(typed: string, target: string): boolean {
   const t = norm(typed)
@@ -267,10 +309,21 @@ export function Basics() {
           >
             ✍️ Practice
           </button>
+          {active.id === 'numbers' && (
+            <button
+              className={`xp-btn${mode === 'challenge' ? ' xp-btn-primary' : ''}`}
+              style={{ flex: 1 }}
+              onClick={() => setMode('challenge')}
+            >
+              🔢 Challenge
+            </button>
+          )}
           <button className="xp-btn" onClick={() => setActiveId(null)}>← Topics</button>
         </div>
 
-        {mode === 'browse' ? <BrowseList entries={active.entries} /> : <Practice entries={active.entries} />}
+        {mode === 'browse' && <BrowseList entries={active.entries} />}
+        {mode === 'practice' && <Practice entries={active.entries} />}
+        {mode === 'challenge' && <NumberChallenge />}
       </XpWindow>
     </div>
   )
@@ -328,6 +381,9 @@ function Practice({ entries }: { entries: Entry[] }) {
   const [feedback, setFeedback] = useState<'correct' | 'incorrect' | null>(null)
   const [correct, setCorrect] = useState(0)
   const [seen, setSeen] = useState(0)
+  const [listening, setListening] = useState(false)
+  const [micError, setMicError] = useState<string | null>(null)
+  const stopRef = useRef<(() => void) | null>(null)
 
   if (idx >= order.length) {
     const pct = seen > 0 ? Math.round((correct / seen) * 100) : 0
@@ -348,6 +404,7 @@ function Practice({ entries }: { entries: Entry[] }) {
   }
 
   const item = order[idx]
+  const pct = order.length > 0 ? Math.round((idx / order.length) * 100) : 0
 
   function submit() {
     if (feedback) {
@@ -365,6 +422,10 @@ function Practice({ entries }: { entries: Entry[] }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+      {/* Progress bar */}
+      <div style={{ height: '6px', background: 'rgba(255,255,255,0.08)', borderRadius: '3px', overflow: 'hidden' }}>
+        <div style={{ width: `${pct}%`, height: '100%', background: 'var(--color-accent)', transition: 'width 0.3s' }} />
+      </div>
       <div style={{ fontSize: '12px', color: '#888' }}>
         {idx + 1} of {order.length} · {correct}/{seen} correct
       </div>
@@ -375,26 +436,67 @@ function Practice({ entries }: { entries: Entry[] }) {
         <input
           value={typed}
           disabled={feedback !== null}
-          placeholder="Type in Spanish…"
+          placeholder={listening ? '🎤 Listening…' : 'Type in Spanish…'}
           autoFocus
           onChange={(e) => setTyped(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') submit() }}
           style={{
             flex: 1, padding: '8px 10px', fontSize: '14px',
             background: '#1a1a1a',
-            border: `2px solid ${feedback === 'correct' ? '#4caf50' : feedback === 'incorrect' ? '#e53935' : 'var(--color-accent)'}`,
+            border: `2px solid ${feedback === 'correct' ? '#4caf50' : feedback === 'incorrect' ? '#e53935' : listening ? '#2196f3' : 'var(--color-accent)'}`,
             borderRadius: '3px', color: '#fff', outline: 'none', boxSizing: 'border-box',
           }}
         />
+        {recognitionSupported && (
+          <button
+            className={`xp-btn${listening ? ' mic-listening' : ''}`}
+            disabled={feedback !== null}
+            title="Speak in Spanish"
+            style={{
+              minWidth: 'auto', padding: '4px 10px',
+              border: `2px solid ${listening ? '#2196f3' : 'var(--color-accent)'}`,
+              color: listening ? '#2196f3' : undefined,
+            }}
+            onClick={() => {
+              if (listening) {
+                stopRef.current?.()
+                setListening(false)
+                return
+              }
+              setMicError(null)
+              setListening(true)
+              stopRef.current = startListening(
+                (text, isFinal) => {
+                  setTyped(text)
+                  if (isFinal) setListening(false)
+                },
+                (err) => {
+                  setListening(false)
+                  if (err) {
+                    const m = describeRecognitionError(err)
+                    if (m) setMicError(m)
+                  }
+                },
+                'es-ES',
+              )
+            }}
+          >{listening ? '⏹' : '🎤'}</button>
+        )}
         <button className="xp-btn xp-btn-primary" disabled={!feedback && !typed.trim()} onClick={submit}>
           {feedback ? 'Next →' : 'Check'}
         </button>
       </div>
+      {micError && <div style={{ fontSize: '11px', color: '#ff9800' }}>🎤 {micError}</div>}
       {feedback === 'correct' && (
         <div style={{ fontSize: '13px', color: '#4caf50' }}>✓ {item.spanish}</div>
       )}
       {feedback === 'incorrect' && (
-        <div style={{ fontSize: '13px', color: '#e53935' }}>✗ Correct: <strong>{item.spanish}</strong></div>
+        <div style={{ fontSize: '13px', color: '#e53935' }}>
+          ✗{typed.trim() && (
+            <> <span style={{ textDecoration: 'line-through', opacity: 0.7 }}>{typed}</span> → </>
+          )}
+          <strong>{item.spanish}</strong>
+        </div>
       )}
       {item.note && feedback && (
         <div style={{ fontSize: '11px', color: '#888' }}>💡 {item.note}</div>
@@ -409,7 +511,148 @@ function Practice({ entries }: { entries: Entry[] }) {
       <button
         className="xp-btn"
         style={{ fontSize: '11px', alignSelf: 'flex-end' }}
-        onClick={() => { if (!feedback) { setSeen((s) => s + 1); } setFeedback(null); setTyped(''); setIdx((i) => i + 1) }}
+        onClick={() => { stopRef.current?.(); setListening(false); if (!feedback) { setSeen((s) => s + 1); } setFeedback(null); setTyped(''); setIdx((i) => i + 1) }}
+      >Skip →</button>
+    </div>
+  )
+}
+
+function NumberChallenge() {
+  const [range, setRange] = useState<ChallengeRange>('easy')
+  const [current, setCurrent] = useState<number>(() => randomNum('easy'))
+  const [typed, setTyped] = useState('')
+  const [feedback, setFeedback] = useState<'correct' | 'incorrect' | null>(null)
+  const [correct, setCorrect] = useState(0)
+  const [total, setTotal] = useState(0)
+  const [listening, setListening] = useState(false)
+  const [micError, setMicError] = useState<string | null>(null)
+  const stopRef = useRef<(() => void) | null>(null)
+
+  const answer = numberToSpanish(current)
+
+  function next(r: ChallengeRange = range) {
+    stopRef.current?.()
+    setListening(false)
+    setCurrent(randomNum(r, current))
+    setTyped('')
+    setFeedback(null)
+  }
+
+  function changeRange(r: ChallengeRange) {
+    setRange(r)
+    next(r)
+  }
+
+  function submit() {
+    if (feedback) { next(); return }
+    if (!typed.trim()) return
+    const ok = norm(typed) === norm(answer)
+    setFeedback(ok ? 'correct' : 'incorrect')
+    setCorrect((c) => c + (ok ? 1 : 0))
+    setTotal((t) => t + 1)
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+      {/* Range selector */}
+      <div style={{ display: 'flex', gap: '6px' }}>
+        {(['easy', 'medium', 'hard'] as ChallengeRange[]).map((r) => (
+          <button
+            key={r}
+            className={`xp-btn${range === r ? ' xp-btn-primary' : ''}`}
+            style={{ flex: 1, fontSize: '12px' }}
+            onClick={() => changeRange(r)}
+          >
+            {r === 'easy' ? '1–20' : r === 'medium' ? '1–100' : '1–1000'}
+          </button>
+        ))}
+      </div>
+
+      {/* Score */}
+      <div style={{ fontSize: '12px', color: '#888' }}>
+        {total > 0 ? `${correct}/${total} correct` : 'Write the number in Spanish'}
+      </div>
+
+      {/* The number */}
+      <div style={{
+        fontSize: '56px', fontWeight: 'bold', color: 'var(--color-accent)',
+        textAlign: 'center', padding: '16px 0', letterSpacing: '-1px',
+      }}>
+        {current}
+      </div>
+
+      {/* Input row */}
+      <div style={{ display: 'flex', gap: '4px' }}>
+        <input
+          value={typed}
+          disabled={feedback !== null}
+          placeholder={listening ? '🎤 Listening…' : 'Type in Spanish…'}
+          autoFocus
+          onChange={(e) => setTyped(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') submit() }}
+          style={{
+            flex: 1, padding: '8px 10px', fontSize: '14px',
+            background: '#1a1a1a',
+            border: `2px solid ${feedback === 'correct' ? '#4caf50' : feedback === 'incorrect' ? '#e53935' : listening ? '#2196f3' : 'var(--color-accent)'}`,
+            borderRadius: '3px', color: '#fff', outline: 'none', boxSizing: 'border-box',
+          }}
+        />
+        {recognitionSupported && (
+          <button
+            className={`xp-btn${listening ? ' mic-listening' : ''}`}
+            disabled={feedback !== null}
+            title="Speak in Spanish"
+            style={{
+              minWidth: 'auto', padding: '4px 10px',
+              border: `2px solid ${listening ? '#2196f3' : 'var(--color-accent)'}`,
+              color: listening ? '#2196f3' : undefined,
+            }}
+            onClick={() => {
+              if (listening) { stopRef.current?.(); setListening(false); return }
+              setMicError(null)
+              setListening(true)
+              stopRef.current = startListening(
+                (text, isFinal) => { setTyped(text); if (isFinal) setListening(false) },
+                (err) => {
+                  setListening(false)
+                  if (err) { const m = describeRecognitionError(err); if (m) setMicError(m) }
+                },
+                'es-ES',
+              )
+            }}
+          >{listening ? '⏹' : '🎤'}</button>
+        )}
+        <button className="xp-btn xp-btn-primary" disabled={!feedback && !typed.trim()} onClick={submit}>
+          {feedback ? 'Next →' : 'Check'}
+        </button>
+      </div>
+
+      {micError && <div style={{ fontSize: '11px', color: '#ff9800' }}>🎤 {micError}</div>}
+
+      {feedback === 'correct' && (
+        <div style={{ fontSize: '14px', color: '#4caf50' }}>✓ {answer}</div>
+      )}
+      {feedback === 'incorrect' && (
+        <div style={{ fontSize: '14px', color: '#e53935' }}>
+          ✗{typed.trim() && (
+            <> <span style={{ textDecoration: 'line-through', opacity: 0.7 }}>{typed}</span> → </>
+          )}
+          <strong>{answer}</strong>
+        </div>
+      )}
+
+      {speechSupported && feedback && (
+        <button
+          className="xp-btn"
+          style={{ fontSize: '11px', alignSelf: 'flex-start' }}
+          onClick={() => speak(answer)}
+        >🔊 Hear it</button>
+      )}
+
+      <button
+        className="xp-btn"
+        style={{ fontSize: '11px', alignSelf: 'flex-end' }}
+        onClick={() => next()}
       >Skip →</button>
     </div>
   )
