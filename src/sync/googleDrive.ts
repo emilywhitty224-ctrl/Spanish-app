@@ -68,7 +68,7 @@ export function signIn(interactive = true): Promise<string> {
       resolve(accessToken!)
     }
     // An empty prompt attempts a silent token; 'consent' forces the chooser.
-    tokenClient.requestAccessToken({ prompt: interactive && !accessToken ? 'consent' : '' })
+    tokenClient.requestAccessToken({ prompt: interactive ? 'select_account' : '' })
   })
 }
 

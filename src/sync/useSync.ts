@@ -52,7 +52,7 @@ export const useSync = create<SyncState>((set, get) => ({
     set({ busy: true, error: null })
     try {
       await initGoogle()
-      await gSignIn(false)
+      await gSignIn(true)
       const info = await fetchUserInfo()
       set({ userInfo: info })
       if (get().fileId) {
