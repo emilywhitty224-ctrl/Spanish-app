@@ -11,6 +11,7 @@ import { ChatWithBarny } from './pages/ChatWithBarny'
 import { FreeChat } from './pages/FreeChat'
 import { Lesson } from './pages/Lesson'
 import { AddWords } from './pages/AddWords'
+import { Basics } from './pages/Basics'
 import { Settings } from './pages/Settings'
 import './index.css'
 
@@ -36,6 +37,7 @@ function AppShell() {
         <Route path="/campaign/free-chat" element={<FreeChat />} />
         <Route path="/lesson" element={<Lesson />} />
         <Route path="/add-words" element={<AddWords />} />
+        <Route path="/basics" element={<Basics />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/campaign/:mode" element={<PlaceholderPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
