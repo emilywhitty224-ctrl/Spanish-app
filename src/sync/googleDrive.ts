@@ -67,6 +67,12 @@ export function signIn(interactive = true): Promise<string> {
       accessToken = resp.access_token
       resolve(accessToken!)
     }
+    // Without this, a blocked/failed popup (e.g. this origin isn't in the OAuth
+    // client's Authorized JavaScript origins) never fires the callback and the
+    // sign-in promise hangs forever.
+    tokenClient.error_callback = (err: any) => {
+      reject(new Error(err?.type ? `Sign-in failed: ${err.type}` : 'Sign-in failed'))
+    }
     // An empty prompt attempts a silent token; 'consent' forces the chooser.
     tokenClient.requestAccessToken({ prompt: interactive ? 'select_account' : '' })
   })
