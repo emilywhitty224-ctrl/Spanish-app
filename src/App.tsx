@@ -27,7 +27,7 @@ function AppShell() {
   }, [])
 
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={import.meta.env.BASE_URL}>
       <Routes>
         <Route path="/" element={<SplashScreen />} />
         <Route path="/dashboard" element={<Dashboard />} />
