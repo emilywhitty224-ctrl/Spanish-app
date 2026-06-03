@@ -20,6 +20,7 @@ export function Settings() {
     speechRate, setSpeechRate,
     aiProvider, setAiProvider,
     aiApiKey, setAiApiKey,
+    strictAccents, setStrictAccents,
   } = useStore()
 
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([])
@@ -109,6 +110,24 @@ export function Settings() {
               </button>
             </section>
           )}
+
+          {/* Answer grading */}
+          <section>
+            <SectionTitle>Answer grading</SectionTitle>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#ddd', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={strictAccents}
+                onChange={(e) => setStrictAccents(e.target.checked)}
+              />
+              <span>
+                Strict accents — require <em>café</em>, not <em>cafe</em>.
+              </span>
+            </label>
+            <p style={{ fontSize: '11px', color: '#888', margin: '4px 0 0 22px' }}>
+              When off, missing accents are accepted as correct.
+            </p>
+          </section>
 
           {/* AI free chat */}
           <section>

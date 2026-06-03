@@ -7,9 +7,24 @@ import { useVocab } from '../data/useVocab'
 import { pickLesson, type LessonBundle } from '../utils/lessonPicker'
 import { chatWithAI, chatInLesson, type AiTurn, type AiReply } from '../utils/aiChat'
 import { speak, speechSupported, recognitionSupported, startListening, applySpanishPunctuation, describeRecognitionError } from '../utils/speak'
+import { weakestFirst } from '../utils/srs'
+import { getHint } from '../utils/hints'
+import type { VocabularyItem } from '../types/vocabulary'
 
 type Length = 'quick' | 'full'
-type Stage = 'pick' | 'intro' | 'drill' | 'chat' | 'recap'
+type Stage = 'pick' | 'warmup' | 'intro' | 'drill' | 'chat' | 'recap'
+type DrillSource = 'lesson' | 'mistakes' | 'weak'
+
+const WARMUP_MIN_SEEN = 2
+const WARMUP_MAX_MASTERY = 3
+const WARMUP_MAX = 3
+const MISTAKE_REVIEW_MAX = 5
+const WEAK_DRILL_MAX = 5
+const WEAK_DRILL_MIN = 3
+const MISTAKE_RECOMMEND_MIN = 3
+const DRILL_CUTOFF_MIN_ANSWERED = 4
+const DRILL_CUTOFF_ACCURACY = 0.5
+const DRILL_CUTOFF_MIN_REMAINING = 3
 
 const LENGTHS: Record<Length, { vocab: number; sentences: number; chatTurns: number; minutes: number }> = {
   quick: { vocab: 5,  sentences: 1, chatTurns: 3, minutes: 5 },
@@ -18,6 +33,37 @@ const LENGTHS: Record<Length, { vocab: number; sentences: number; chatTurns: num
 
 function norm(s: string): string {
   return s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[¿?¡!.,;:]/g, '').trim()
+}
+
+const CLOZE_STOPWORDS = new Set([
+  'el','la','los','las','un','una','y','o','de','a','en','que','se','lo','le','les','con','por','para','no','es','son','soy','está',
+])
+
+function pickClozeWord(
+  correction: string,
+  vocabWords: string[],
+): { before: string; word: string; after: string } | null {
+  const tokens = correction.split(/(\s+)/) // preserves whitespace tokens
+  const vocab = new Set(vocabWords.map(norm))
+  let pickIdx = -1
+  for (let i = 0; i < tokens.length; i++) {
+    if (/^\s*$/.test(tokens[i])) continue
+    if (vocab.has(norm(tokens[i]))) { pickIdx = i; break }
+  }
+  if (pickIdx === -1) {
+    for (let i = 0; i < tokens.length; i++) {
+      if (/^\s*$/.test(tokens[i])) continue
+      const lo = norm(tokens[i])
+      if (!lo || CLOZE_STOPWORDS.has(lo) || lo.length < 2) continue
+      pickIdx = i; break
+    }
+  }
+  if (pickIdx === -1) return null
+  return {
+    before: tokens.slice(0, pickIdx).join(''),
+    word: tokens[pickIdx],
+    after: tokens.slice(pickIdx + 1).join(''),
+  }
 }
 
 interface ChatTurn {
@@ -31,6 +77,9 @@ export function Lesson() {
   const { aiProvider, aiApiKey } = useStore()
   const recordResult = useStore((s) => s.recordResult)
   const reviewWord = useStore((s) => s.reviewWord)
+  const clearMistakesForWord = useStore((s) => s.clearMistakesForWord)
+  const skipWarmup = useStore((s) => s.skipWarmup)
+  const setSkipWarmup = useStore((s) => s.setSkipWarmup)
   const srs = useStore((s) => s.srs[s.userProfile])
   const vocabAll = useVocab()
 
@@ -38,14 +87,48 @@ export function Lesson() {
   const [bundle, setBundle] = useState<LessonBundle | null>(null)
   const [stage, setStage] = useState<Stage>('pick')
 
+  // Warm-up state
+  const [warmupWords, setWarmupWords] = useState<VocabularyItem[]>([])
+  const [warmupIdx, setWarmupIdx] = useState(0)
+  const [warmupFlipped, setWarmupFlipped] = useState(false)
+
   // Drill state
+  const [drillSource, setDrillSource] = useState<DrillSource>('lesson')
+  const [drillItems, setDrillItems] = useState<VocabularyItem[]>([])
   const [drillIdx, setDrillIdx] = useState(0)
   const [drillTyped, setDrillTyped] = useState('')
   const [drillFeedback, setDrillFeedback] = useState<'correct' | 'incorrect' | null>(null)
   const [drillCorrect, setDrillCorrect] = useState(0)
+  const [drillCutShort, setDrillCutShort] = useState(false)
   const [drillListening, setDrillListening] = useState(false)
   const [drillMicError, setDrillMicError] = useState<string | null>(null)
   const drillStopRef = useRef<(() => void) | null>(null)
+
+  // Low-mastery words eligible for the "Drill weak words" recap shortcut.
+  const weakWords = useMemo(() => {
+    return weakestFirst(vocabAll, srs).filter((v) => (srs?.[v.id]?.mastery ?? 5) < 3)
+  }, [vocabAll, srs])
+
+  // Words across all vocab with logged mistakes — drives the "Review mistakes" entry point.
+  const mistakeWords = useMemo(() => {
+    const out: VocabularyItem[] = []
+    for (const v of vocabAll) {
+      const e = srs?.[v.id]
+      if (e?.mistakes && e.mistakes.length > 0) out.push(v)
+    }
+    // Most-recent mistake first.
+    out.sort((a, b) => {
+      const am = srs?.[a.id]?.mistakes ?? []
+      const bm = srs?.[b.id]?.mistakes ?? []
+      return (bm[bm.length - 1]?.when ?? 0) - (am[am.length - 1]?.when ?? 0)
+    })
+    return out
+  }, [vocabAll, srs])
+
+  // Cloze-from-correction (filled in by sendChat when Barny corrects the learner)
+  const [cloze, setCloze] = useState<{ turnIdx: number; before: string; word: string; after: string } | null>(null)
+  const [clozeTyped, setClozeTyped] = useState('')
+  const [clozeResult, setClozeResult] = useState<'correct' | 'wrong' | null>(null)
 
   // Chat state
   const [chatTurns, setChatTurns] = useState<ChatTurn[]>([])
@@ -67,22 +150,61 @@ export function Lesson() {
     setBundle(pickLesson(vocabAll, srs, LENGTHS[len].vocab, LENGTHS[len].sentences))
   }
 
+  // Pick up to WARMUP_MAX weak words (mastery < threshold, seen ≥ floor).
+  function computeWarmup(): VocabularyItem[] {
+    const ranked = weakestFirst(vocabAll, srs)
+    const eligible: VocabularyItem[] = []
+    for (const v of ranked) {
+      const e = srs?.[v.id]
+      if (!e) continue
+      if ((e.seen ?? 0) < WARMUP_MIN_SEEN) continue
+      if (e.mastery >= WARMUP_MAX_MASTERY) continue
+      eligible.push(v)
+      if (eligible.length >= WARMUP_MAX) break
+    }
+    return eligible
+  }
+
   // Step counter for the progress bar.
+  const warmupCount = warmupWords.length
   const totalSteps = useMemo(() => {
     if (!bundle || !length) return 0
-    return 1 /* intro */ + bundle.vocab.length /* drill */ + LENGTHS[length].chatTurns /* chat */ + 1 /* recap */
-  }, [bundle, length])
+    return warmupCount /* warmup */ + 1 /* intro */ + bundle.vocab.length /* drill */ + LENGTHS[length].chatTurns /* chat */ + 1 /* recap */
+  }, [bundle, length, warmupCount])
   const currentStep = useMemo(() => {
     if (!bundle || !length) return 0
     if (stage === 'pick') return 0
-    if (stage === 'intro') return 1
-    if (stage === 'drill') return 1 + drillIdx
-    if (stage === 'chat') return 1 + bundle.vocab.length + Math.min(chatTurns.length, LENGTHS[length].chatTurns)
+    if (stage === 'warmup') return warmupIdx
+    if (stage === 'intro') return warmupCount + 1
+    if (stage === 'drill') return warmupCount + 1 + drillIdx
+    if (stage === 'chat') return warmupCount + 1 + bundle.vocab.length + Math.min(chatTurns.length, LENGTHS[length].chatTurns)
     return totalSteps
-  }, [stage, drillIdx, chatTurns.length, bundle, length, totalSteps])
+  }, [stage, drillIdx, chatTurns.length, bundle, length, totalSteps, warmupIdx, warmupCount])
 
   async function startLesson() {
     if (!bundle || !length || !aiApiKey) return
+    // Drill driven by lesson vocab.
+    setDrillSource('lesson')
+    setDrillItems(bundle.vocab)
+    setDrillIdx(0)
+    setDrillCorrect(0)
+    setDrillCutShort(false)
+    // Warm-up gate.
+    const eligible = skipWarmup ? [] : computeWarmup()
+    if (eligible.length > 0) {
+      setWarmupWords(eligible)
+      setWarmupIdx(0)
+      setWarmupFlipped(false)
+      setStage('warmup')
+      if (speechSupported) setTimeout(() => speak(eligible[0].spanish_word), 250)
+      return
+    }
+    setWarmupWords([])
+    await runIntro()
+  }
+
+  async function runIntro() {
+    if (!bundle || !aiApiKey) return
     setStage('intro')
     setChatLoading(true)
     setChatError(null)
@@ -103,26 +225,120 @@ export function Lesson() {
     }
   }
 
+  // Enter advances the drill after feedback is shown (the input is disabled
+  // in that state, so its onKeyDown won't fire on its own).
+  useEffect(() => {
+    if (stage !== 'drill' || !drillFeedback) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Enter') return
+      const tag = (e.target as HTMLElement | null)?.tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return
+      e.preventDefault()
+      submitDrill()
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stage, drillFeedback])
+
+  function advanceWarmup() {
+    const next = warmupIdx + 1
+    if (next >= warmupWords.length) {
+      runIntro()
+    } else {
+      setWarmupIdx(next)
+      setWarmupFlipped(false)
+      if (speechSupported) setTimeout(() => speak(warmupWords[next].spanish_word), 100)
+    }
+  }
+
   function submitDrill() {
-    if (!bundle) return
+    if (drillItems.length === 0) return
     if (drillFeedback) {
       // Advance.
       const next = drillIdx + 1
       setDrillFeedback(null)
       setDrillTyped('')
-      if (next >= bundle.vocab.length) {
-        setStage('chat')
-        startChatRound()
+      if (next >= drillItems.length || (drillCutShort && drillSource === 'lesson')) {
+        if (drillSource === 'mistakes' || drillSource === 'weak') {
+          // Side drills end back at the lesson home.
+          finishSideDrill(drillSource)
+        } else {
+          setStage('chat')
+          startChatRound()
+        }
       } else {
         setDrillIdx(next)
       }
       return
     }
-    const word = bundle.vocab[drillIdx]
+    const word = drillItems[drillIdx]
     const ok = norm(drillTyped) === norm(word.spanish_word)
     setDrillFeedback(ok ? 'correct' : 'incorrect')
-    if (ok) setDrillCorrect((c) => c + 1)
-    reviewWord(word.id, ok)
+    if (ok) {
+      setDrillCorrect((c) => c + 1)
+      reviewWord(word.id, true)
+      // Mistake review: a correct answer clears the word's logged mistakes.
+      if (drillSource === 'mistakes') clearMistakesForWord(word.id)
+    } else {
+      reviewWord(word.id, false, { typed: drillTyped.trim(), expected: word.spanish_word })
+    }
+    // Adaptive cutoff: if a lesson drill is going badly, bail to chat instead of piling on.
+    if (drillSource === 'lesson') {
+      const answered = drillIdx + 1
+      const correctSoFar = drillCorrect + (ok ? 1 : 0)
+      const remaining = drillItems.length - answered
+      if (
+        answered >= DRILL_CUTOFF_MIN_ANSWERED &&
+        correctSoFar / answered < DRILL_CUTOFF_ACCURACY &&
+        remaining >= DRILL_CUTOFF_MIN_REMAINING
+      ) {
+        setDrillCutShort(true)
+      }
+    }
+  }
+
+  function finishSideDrill(source: 'mistakes' | 'weak') {
+    const mode = source === 'mistakes' ? 'lesson-mistake-review' : 'lesson-weak-drill'
+    recordResult(mode, drillCorrect, drillItems.length)
+    setStage('pick')
+    setBundle(null)
+    setLength(null)
+    setChatTurns([])
+    setDraft('')
+    setDrillItems([])
+    setDrillIdx(0)
+    setDrillCorrect(0)
+    setDrillFeedback(null)
+    setDrillTyped('')
+    setDrillSource('lesson')
+    setDrillCutShort(false)
+  }
+
+  function startMistakeReview() {
+    const items = mistakeWords.slice(0, MISTAKE_REVIEW_MAX)
+    if (items.length === 0) return
+    setDrillSource('mistakes')
+    setDrillItems(items)
+    setDrillIdx(0)
+    setDrillCorrect(0)
+    setDrillCutShort(false)
+    setDrillFeedback(null)
+    setDrillTyped('')
+    setStage('drill')
+  }
+
+  function startWeakDrill() {
+    const items = weakWords.slice(0, WEAK_DRILL_MAX)
+    if (items.length === 0) return
+    setDrillSource('weak')
+    setDrillItems(items)
+    setDrillIdx(0)
+    setDrillCorrect(0)
+    setDrillCutShort(false)
+    setDrillFeedback(null)
+    setDrillTyped('')
+    setStage('drill')
   }
 
   async function startChatRound() {
@@ -144,6 +360,18 @@ export function Lesson() {
     } finally {
       setChatLoading(false)
     }
+  }
+
+  function submitCloze() {
+    if (!cloze) return
+    if (clozeResult) {
+      setCloze(null)
+      setClozeResult(null)
+      setClozeTyped('')
+      return
+    }
+    const ok = norm(clozeTyped) === norm(cloze.word)
+    setClozeResult(ok ? 'correct' : 'wrong')
   }
 
   async function sendChat(textOverride?: string) {
@@ -175,6 +403,20 @@ export function Lesson() {
       )
       const next = [...optimistic]
       next[lastIdx] = { ...next[lastIdx], feedback: reply.feedback }
+
+      // If Barny corrected us, derive a one-word cloze from the correction.
+      if (reply.feedback?.correction && reply.feedback.outcome !== 'good' && bundle) {
+        const picked = pickClozeWord(reply.feedback.correction, bundle.vocab.map((v) => v.spanish_word))
+        if (picked) {
+          setCloze({ turnIdx: lastIdx, ...picked })
+          setClozeTyped('')
+          setClozeResult(null)
+        } else {
+          setCloze(null)
+        }
+      } else {
+        setCloze(null)
+      }
 
       // Have we hit the chat budget?
       const userExchanges = next.filter((t) => t.user).length
@@ -258,6 +500,17 @@ export function Lesson() {
             </div>
           )}
 
+          {mistakeWords.length > 0 && (
+            <button
+              className="xp-btn"
+              style={{ marginTop: '14px', padding: '10px', textAlign: 'left' }}
+              onClick={startMistakeReview}
+            >
+              <div style={{ fontSize: '13px', fontWeight: 'bold' }}>🩹 Review mistakes — {Math.min(mistakeWords.length, MISTAKE_REVIEW_MAX)} words</div>
+              <div style={{ fontSize: '11px', color: '#666' }}>Re-drill the words you got wrong recently</div>
+            </button>
+          )}
+
           <button className="xp-btn" style={{ marginTop: '14px' }} onClick={() => navigate('/dashboard')}>← Dashboard</button>
         </XpWindow>
       </div>
@@ -265,7 +518,9 @@ export function Lesson() {
   }
 
   const pct = totalSteps > 0 ? Math.round((currentStep / totalSteps) * 100) : 0
-  const word = stage === 'drill' && bundle ? bundle.vocab[drillIdx] : null
+  const word = stage === 'drill' && drillItems.length > 0 ? drillItems[drillIdx] : null
+  const warmupWord = stage === 'warmup' ? warmupWords[warmupIdx] : null
+  const hint = drillFeedback === 'incorrect' && word ? getHint(word) : null
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '8px', width: '100%' }}>
@@ -274,6 +529,55 @@ export function Lesson() {
         <div style={{ height: '6px', background: 'rgba(255,255,255,0.08)', borderRadius: '3px', overflow: 'hidden', marginBottom: '10px' }}>
           <div style={{ width: `${pct}%`, height: '100%', background: 'var(--color-accent)', transition: 'width 0.3s' }} />
         </div>
+
+        {/* Warm-up: flip cards for the learner's weakest words */}
+        {stage === 'warmup' && warmupWord && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div style={{ fontSize: '12px', color: '#888' }}>
+              Warm-up {warmupIdx + 1} of {warmupWords.length} · weak words to refresh
+            </div>
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={() => setWarmupFlipped((f) => !f)}
+              onKeyDown={(e) => {
+                if (e.key === ' ') { e.preventDefault(); setWarmupFlipped((f) => !f); return }
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  if (warmupFlipped) advanceWarmup()
+                  else setWarmupFlipped(true)
+                }
+              }}
+              style={{
+                padding: '24px 16px', textAlign: 'center',
+                border: '2px solid var(--color-accent)', borderRadius: '4px',
+                background: 'rgba(255,255,255,0.04)', cursor: 'pointer',
+              }}
+            >
+              <div style={{ fontSize: '22px', color: 'var(--color-accent)' }}>{warmupWord.spanish_word}</div>
+              <div style={{ marginTop: '12px', fontSize: '14px', color: warmupFlipped ? '#bbb' : 'transparent', minHeight: '18px' }}>
+                {warmupFlipped ? warmupWord.english_translation : '— tap to reveal —'}
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '6px' }}>
+              {speechSupported && (
+                <button className="xp-btn" style={{ fontSize: '11px' }} onClick={() => speak(warmupWord.spanish_word)}>🔊 Hear it</button>
+              )}
+              <button
+                className="xp-btn xp-btn-primary"
+                style={{ flex: 1 }}
+                onClick={advanceWarmup}
+              >
+                {warmupIdx + 1 >= warmupWords.length ? 'Begin lesson →' : 'Next word →'}
+              </button>
+            </div>
+            <button
+              className="xp-btn"
+              style={{ fontSize: '11px', alignSelf: 'flex-end' }}
+              onClick={() => { setSkipWarmup(true); runIntro() }}
+            >Skip warm-up (don't ask again)</button>
+          </div>
+        )}
 
         {/* Intro */}
         {stage === 'intro' && bundle && (
@@ -320,7 +624,9 @@ export function Lesson() {
         {/* Drill: show English, type Spanish */}
         {stage === 'drill' && word && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <div style={{ fontSize: '12px', color: '#888' }}>Word {drillIdx + 1} of {bundle?.vocab.length}</div>
+            <div style={{ fontSize: '12px', color: '#888' }}>
+              {drillSource === 'mistakes' ? '🩹 Mistake review' : drillSource === 'weak' ? '🎯 Weak words' : 'Word'} {drillIdx + 1} of {drillItems.length}
+            </div>
             <div style={{ fontSize: '22px', color: 'var(--color-accent)', textAlign: 'center', padding: '10px 0' }}>
               {word.english_translation}
             </div>
@@ -383,7 +689,22 @@ export function Lesson() {
               <div style={{ fontSize: '13px', color: '#4caf50' }}>✓ {word.spanish_word}</div>
             )}
             {drillFeedback === 'incorrect' && (
-              <div style={{ fontSize: '13px', color: '#e53935' }}>✗ Correct: <strong>{word.spanish_word}</strong></div>
+              <div style={{ fontSize: '13px', color: '#e53935' }}>
+                ✗ {drillTyped.trim() && (
+                  <>
+                    <span style={{ textDecoration: 'line-through', opacity: 0.7 }}>{drillTyped}</span>
+                    {' → '}
+                  </>
+                )}
+                <strong>{word.spanish_word}</strong>
+              </div>
+            )}
+            {hint && (
+              <div style={{
+                fontSize: '12px', color: '#bbb',
+                padding: '8px 10px', borderLeft: '3px solid var(--color-accent)',
+                background: 'rgba(255,255,255,0.04)', borderRadius: '2px',
+              }}>💡 {hint}</div>
             )}
             {speechSupported && drillFeedback && (
               <button
@@ -435,6 +756,42 @@ export function Lesson() {
                       <div style={{ marginLeft: '14px', fontSize: '11px', color: '#bbb', borderLeft: `2px solid ${t.feedback.outcome === 'okay' ? '#ff9800' : '#e53935'}`, paddingLeft: '8px' }}>
                         💡 {t.feedback.explanation}
                         {t.feedback.correction && <div style={{ marginTop: '2px' }}>→ {t.feedback.correction}</div>}
+                        {cloze && cloze.turnIdx === i && (
+                          <div style={{ marginTop: '6px', padding: '6px', background: 'rgba(255,255,255,0.04)', borderRadius: '3px' }}>
+                            <div style={{ color: '#ddd', marginBottom: '4px' }}>Fill in the missing word:</div>
+                            <div style={{ fontSize: '13px', color: '#fff', marginBottom: '6px' }}>
+                              {cloze.before}
+                              <span style={{ borderBottom: '1px solid #ff9800', padding: '0 18px', color: '#ff9800' }}>
+                                {clozeResult ? cloze.word : '____'}
+                              </span>
+                              {cloze.after}
+                            </div>
+                            {clozeResult === null && (
+                              <div style={{ display: 'flex', gap: '4px' }}>
+                                <input
+                                  autoFocus
+                                  value={clozeTyped}
+                                  onChange={(e) => setClozeTyped(e.target.value)}
+                                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); submitCloze() } }}
+                                  style={{ flex: 1, padding: '4px 6px', fontSize: '12px', background: '#1a1a1a', border: '1px solid var(--color-accent)', borderRadius: '3px', color: '#fff', outline: 'none' }}
+                                />
+                                <button className="xp-btn xp-btn-primary" style={{ fontSize: '11px' }} onClick={submitCloze} disabled={!clozeTyped.trim()}>Check</button>
+                              </div>
+                            )}
+                            {clozeResult === 'correct' && (
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#4caf50' }}>
+                                <span>¡Eso! ✓</span>
+                                <button className="xp-btn" style={{ fontSize: '11px' }} onClick={submitCloze}>Next →</button>
+                              </div>
+                            )}
+                            {clozeResult === 'wrong' && (
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#e53935' }}>
+                                <span>Answer: <strong>{cloze.word}</strong></span>
+                                <button className="xp-btn" style={{ fontSize: '11px' }} onClick={submitCloze}>Next →</button>
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -519,12 +876,29 @@ export function Lesson() {
               <div style={{ marginTop: '10px', fontSize: '12px', color: '#bbb' }}>
                 Drill: <strong style={{ color: '#4caf50' }}>{drillCorrect}/{bundle.vocab.length}</strong>
               </div>
+              {drillCutShort && (
+                <div style={{ marginTop: '6px', fontSize: '11px', color: '#888', fontStyle: 'italic' }}>
+                  Drill cut short — we'll revisit the rest next time.
+                </div>
+              )}
             </div>
             <div style={{ display: 'flex', gap: '6px' }}>
-              <button className="xp-btn xp-btn-primary" style={{ flex: 1 }} onClick={() => {
-                setStage('pick'); setBundle(null); setLength(null)
-                setChatTurns([]); setDraft(''); setDrillIdx(0); setDrillCorrect(0); setDrillFeedback(null); setDrillTyped('')
-              }}>Another lesson</button>
+              {mistakeWords.length >= MISTAKE_RECOMMEND_MIN ? (
+                <button className="xp-btn xp-btn-primary" style={{ flex: 1 }} onClick={() => {
+                  setBundle(null); setLength(null); setChatTurns([]); setDraft('')
+                  startMistakeReview()
+                }}>🩹 Review your mistakes ({mistakeWords.length})</button>
+              ) : weakWords.length >= WEAK_DRILL_MIN ? (
+                <button className="xp-btn xp-btn-primary" style={{ flex: 1 }} onClick={() => {
+                  setBundle(null); setLength(null); setChatTurns([]); setDraft('')
+                  startWeakDrill()
+                }}>🎯 Drill weak words</button>
+              ) : (
+                <button className="xp-btn xp-btn-primary" style={{ flex: 1 }} onClick={() => {
+                  setStage('pick'); setBundle(null); setLength(null)
+                  setChatTurns([]); setDraft(''); setDrillIdx(0); setDrillCorrect(0); setDrillFeedback(null); setDrillTyped(''); setDrillCutShort(false)
+                }}>Another lesson</button>
+              )}
               <button className="xp-btn" onClick={() => navigate('/dashboard')}>← Dashboard</button>
             </div>
           </div>

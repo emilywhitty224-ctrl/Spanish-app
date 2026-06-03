@@ -5,8 +5,9 @@ import { Barny } from './Barny'
 import type { BarneyPose } from './Barny'
 import { useStore } from '../store/useStore'
 import { pickDueFirst } from '../utils/srs'
-import { checkAnswer } from '../utils/answerCheck'
+import { checkAnswer, checkAnswerForWord } from '../utils/answerCheck'
 import { getHint } from '../utils/hints'
+import { CONJUGATIONS, LADDER_PERSONS, listConjugatableVerbs, type Person } from '../data/conjugations'
 import { speak, speechSupported, recognitionSupported, startListening, applySpanishPunctuation, describeRecognitionError } from '../utils/speak'
 import { SENTENCES, pickSentences, tokenize, type Sentence } from '../data/sentences'
 import type { VocabularyItem } from '../types/vocabulary'
@@ -14,7 +15,7 @@ import type { VocabularyItem } from '../types/vocabulary'
 type RevisionMode =
   | 'flashcard' | 'multiple-choice' | 'fill-in-the-blank' | 'mixed'
   | 'reverse' | 'true-false' | 'matching' | 'memory' | 'speed-round' | 'gusta-drill'
-  | 'cloze-sentence' | 'dictation' | 'word-order'
+  | 'cloze-sentence' | 'dictation' | 'word-order' | 'listening' | 'conjugation'
 
 type GustaQuestion = { thing: string; english: string; answer: 'gusta' | 'gustan' }
 
@@ -42,6 +43,8 @@ type QuizQuestion =
   | { format: 'multiple-choice'; item: VocabularyItem; options: string[] }
   | { format: 'fill-in-the-blank'; item: VocabularyItem }
   | { format: 'reverse'; item: VocabularyItem }
+  | { format: 'listening'; item: VocabularyItem }
+  | { format: 'conjugation'; item: VocabularyItem; verb: string; person: Person; expected: string }
   | { format: 'true-false'; item: VocabularyItem; shownTranslation: string; isCorrectPair: boolean }
 
 type MemoryCard = { id: number; itemId: string; side: 'spanish' | 'english'; text: string }
@@ -57,10 +60,12 @@ function shuffle<T>(arr: T[]): T[] {
 
 function buildQuestions(vocab: VocabularyItem[], mode: RevisionMode): QuizQuestion[] {
   if (mode === 'matching' || mode === 'memory' || mode === 'gusta-drill') return []
+  if (mode === 'conjugation') return buildConjugationLadder(vocab)
   return shuffle(vocab).map((item): QuizQuestion => {
     if (mode === 'flashcard') return { format: 'flashcard', item }
     if (mode === 'fill-in-the-blank') return { format: 'fill-in-the-blank', item }
     if (mode === 'reverse') return { format: 'reverse', item }
+    if (mode === 'listening') return { format: 'listening', item }
     if (mode === 'true-false') {
       if (vocab.length < 2) return { format: 'flashcard', item }
       const useCorrect = Math.random() < 0.5
@@ -95,6 +100,38 @@ function buildQuestions(vocab: VocabularyItem[], mode: RevisionMode): QuizQuesti
   })
 }
 
+function stubVerbItem(verb: string): VocabularyItem {
+  return {
+    id: `irregular:${verb}`,
+    spanish_word: verb,
+    english_translation: '(irregular verb)',
+    type: 'verb',
+    tags: ['irregular'],
+    mastery_level: 0,
+    next_review_date: '',
+    beginner_safe: true,
+  }
+}
+
+function buildConjugationLadder(vocab: VocabularyItem[]): QuizQuestion[] {
+  // Prefer verbs the deck already includes (so SRS can update); otherwise
+  // fall back to a random handful of the irregulars table.
+  const deckVerbs = vocab
+    .map((v) => ({ v, key: v.spanish_word.toLowerCase().trim() }))
+    .filter((x) => CONJUGATIONS[x.key])
+  const all = listConjugatableVerbs()
+  const picked = deckVerbs.length > 0
+    ? shuffle(deckVerbs).slice(0, 3).map((x) => ({ verb: x.key, item: x.v }))
+    : shuffle(all).slice(0, 3).map((verb) => ({ verb, item: stubVerbItem(verb) }))
+  const out: QuizQuestion[] = []
+  for (const { verb, item } of picked) {
+    for (const person of LADDER_PERSONS) {
+      out.push({ format: 'conjugation', item, verb, person, expected: CONJUGATIONS[verb][person] })
+    }
+  }
+  return out
+}
+
 function buildMemoryCards(vocab: VocabularyItem[]): MemoryCard[] {
   const cards: MemoryCard[] = []
   vocab.forEach((item, i) => {
@@ -109,6 +146,8 @@ const FORMAT_LABEL: Record<QuizQuestion['format'], string> = {
   'multiple-choice':  'Multiple Choice',
   'fill-in-the-blank':'Fill in the Blank',
   'reverse':          'Reverse',
+  'listening':        'Listening',
+  'conjugation':      'Conjugation',
   'true-false':       'True / False',
 }
 
@@ -126,6 +165,8 @@ const ICON_PATHS: Record<RevisionMode, string> = {
   'cloze-sentence':    'M3 7h7 M12 7h2 M16 7h5 M3 13h4 M9 13h6 M17 13h4 M3 19h9 M14 19h7',
   'dictation':         'M12 4v12 M9 13l3 3 3-3 M4 18v2h16v-2',
   'word-order':        'M4 6h5v5H4z M11 6h5v5h-5z M18 6h2v5h-2z M4 14h3v5H4z M9 14h6v5H9z M17 14h3v5h-3z',
+  'listening':         'M12 4v12 M9 13l3 3 3-3 M4 18v2h16v-2',
+  'conjugation':       'M4 6h16 M4 12h16 M4 18h16 M8 4v16 M16 4v16',
 }
 
 function SpeakButton({ text }: { text: string }) {
@@ -185,6 +226,8 @@ const MODES: { id: RevisionMode; label: string; desc: string }[] = [
   { id: 'multiple-choice',   label: 'Multiple Choice',   desc: 'Pick the right translation' },
   { id: 'fill-in-the-blank', label: 'Fill in the Blank', desc: 'Type the English translation' },
   { id: 'reverse',           label: 'Reverse',           desc: 'Given English, type the Spanish' },
+  { id: 'listening',         label: 'Listening only',    desc: 'Hear it spoken, type the English' },
+  { id: 'conjugation',       label: 'Conjugation ladder', desc: 'Walk the persons for irregular verbs' },
   { id: 'true-false',        label: 'True / False',       desc: 'Is this translation correct?' },
   { id: 'matching',          label: 'Matching Pairs',    desc: 'Connect Spanish to English' },
   { id: 'memory',            label: 'Memory Game',       desc: 'Flip cards to find pairs' },
@@ -210,6 +253,7 @@ export function RevisionGame({ title, icon, vocab: allVocab, deckLabel, exitTo, 
   const navigate = useNavigate()
   const recordResult = useStore((s) => s.recordResult)
   const srs = useStore((s) => s.srs?.[s.userProfile] ?? {})
+  const strictAccents = useStore((s) => s.strictAccents)
 
   const [category, setCategory] = useState<string>('all')
   const categories = useMemo(() => {
@@ -301,7 +345,7 @@ export function RevisionGame({ title, icon, vocab: allVocab, deckLabel, exitTo, 
 
   function advance(outcome: 'correct' | 'incorrect') {
     const q = current
-    if (q) onWordResult?.(q.item.id, outcome === 'correct')
+    if (q && !q.item.id.startsWith('irregular:')) onWordResult?.(q.item.id, outcome === 'correct')
 
     // Redo entries don't add to the round's score — they only give the
     // learner a second shot and feed SRS.
@@ -346,7 +390,7 @@ export function RevisionGame({ title, icon, vocab: allVocab, deckLabel, exitTo, 
       if (chosen) return
       setChosen('__dontknow__')
       setTimeout(() => advance('incorrect'), 1000)
-    } else if (current.format === 'fill-in-the-blank' || current.format === 'reverse') {
+    } else if (current.format === 'fill-in-the-blank' || current.format === 'reverse' || current.format === 'listening' || current.format === 'conjugation') {
       if (fillFeedback) return
       setFillFeedback('incorrect')
     } else if (current.format === 'true-false') {
@@ -477,6 +521,7 @@ export function RevisionGame({ title, icon, vocab: allVocab, deckLabel, exitTo, 
   useEffect(() => {
     if (phase !== 'quiz' || !current) return
     const t = setTimeout(() => {
+      if (current.format === 'conjugation') return
       if (current.format === 'reverse') {
         speak(current.item.english_translation, undefined, 'en-US')
       } else {
@@ -545,8 +590,15 @@ export function RevisionGame({ title, icon, vocab: allVocab, deckLabel, exitTo, 
 
   function submitFill(isReverse: boolean) {
     if (fillFeedback || !current) return
-    const answer = isReverse ? current.item.spanish_word : current.item.english_translation
-    const verdict = checkAnswer(typed, answer)
+    const expected =
+      current.format === 'conjugation' ? current.expected
+      : isReverse ? current.item.spanish_word
+      : null
+    const verdict = current.format === 'conjugation'
+      ? checkAnswer(typed, expected!, strictAccents)
+      : isReverse
+        ? checkAnswer(typed, current.item.spanish_word, strictAccents)
+        : checkAnswerForWord(typed, current.item, strictAccents)
     const state = verdict === 'wrong' ? 'incorrect' : verdict
     setFillFeedback(state)
     // 'almost' counts as correct for SRS — don't punish typos — but we still
@@ -1175,7 +1227,37 @@ export function RevisionGame({ title, icon, vocab: allVocab, deckLabel, exitTo, 
               background: 'rgba(255,255,255,0.03)',
             }}>
               {/* Prompt */}
-              {current.format === 'reverse' ? (
+              {current.format === 'conjugation' ? (
+                <>
+                  <p style={{ fontSize: '11px', color: '#888', marginBottom: '6px' }}>Conjugate this verb</p>
+                  <p style={{ fontSize: '28px', fontWeight: 'bold', color: 'var(--color-accent)', marginBottom: '0' }}>
+                    <span style={{ color: '#bbb' }}>{current.person}</span> + <em>{current.verb}</em>
+                  </p>
+                  <p style={{ fontSize: '11px', color: '#666', marginTop: '4px' }}>(present tense)</p>
+                </>
+              ) : current.format === 'listening' ? (
+                <>
+                  <p style={{ fontSize: '11px', color: '#888', marginBottom: '6px' }}>Listen and translate to English</p>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '4px' }}>
+                    <span style={{ fontSize: '40px', color: 'var(--color-accent)' }}>🔊</span>
+                    {speechSupported && (
+                      <button
+                        className="xp-btn"
+                        style={{ minWidth: 'auto', padding: '6px 12px' }}
+                        onClick={() => speak(current.item.spanish_word)}
+                      >
+                        Replay
+                      </button>
+                    )}
+                  </div>
+                  {fillFeedback && (
+                    <p style={{ fontSize: '20px', fontWeight: 'bold', color: 'var(--color-accent)', margin: '8px 0 0' }}>
+                      {current.item.spanish_word}
+                    </p>
+                  )}
+                  <p style={{ fontSize: '11px', color: '#666', marginTop: '4px' }}>({current.item.type})</p>
+                </>
+              ) : current.format === 'reverse' ? (
                 <>
                   <p style={{ fontSize: '11px', color: '#888', marginBottom: '6px' }}>What is this in Spanish?</p>
                   <p style={{ fontSize: '28px', fontWeight: 'bold', color: 'var(--color-accent)', marginBottom: '0' }}>
@@ -1273,6 +1355,39 @@ export function RevisionGame({ title, icon, vocab: allVocab, deckLabel, exitTo, 
                 />
               )}
 
+              {/* Conjugation ladder */}
+              {current.format === 'conjugation' && (
+                <FillInput
+                  typed={typed}
+                  setTyped={setTyped}
+                  feedback={fillFeedback}
+                  answer={current.expected}
+                  placeholder={`${current.person} ${current.verb} → …`}
+                  hint={
+                    'Full table: ' +
+                    LADDER_PERSONS.map((p) => `${p} ${CONJUGATIONS[current.verb][p]}`).join(' · ')
+                  }
+                  onSubmit={() => submitFill(false)}
+                  onNext={() => advance('incorrect')}
+                  speechLang="es-ES"
+                />
+              )}
+
+              {/* Listening */}
+              {current.format === 'listening' && (
+                <FillInput
+                  typed={typed}
+                  setTyped={setTyped}
+                  feedback={fillFeedback}
+                  answer={current.item.english_translation}
+                  placeholder="Type the English translation…"
+                  hint={getHint(current.item)}
+                  onSubmit={() => submitFill(false)}
+                  onNext={() => advance('incorrect')}
+                  speechLang="en-US"
+                />
+              )}
+
               {/* Reverse */}
               {current.format === 'reverse' && (
                 <FillInput
@@ -1332,7 +1447,7 @@ export function RevisionGame({ title, icon, vocab: allVocab, deckLabel, exitTo, 
               {/* "I don't know" — shown until the learner commits to an answer */}
               {((current.format === 'flashcard' && !flipped) ||
                 (current.format === 'multiple-choice' && !chosen) ||
-                ((current.format === 'fill-in-the-blank' || current.format === 'reverse') && !fillFeedback) ||
+                ((current.format === 'fill-in-the-blank' || current.format === 'reverse' || current.format === 'listening' || current.format === 'conjugation') && !fillFeedback) ||
                 (current.format === 'true-false' && !tfFeedback)) && (
                 <div style={{ marginTop: '12px' }}>
                   <button
@@ -1371,6 +1486,21 @@ function FillInput({ typed, setTyped, feedback, answer, placeholder, hint, onSub
   const [listening, setListening] = useState(false)
   const [micError, setMicError] = useState<string | null>(null)
   const stopRef = useRef<(() => void) | null>(null)
+
+  // Enter advances after wrong feedback (the input is disabled, so its own
+  // keydown handler won't fire).
+  useEffect(() => {
+    if (feedback !== 'incorrect') return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Enter') return
+      const tag = (e.target as HTMLElement | null)?.tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return
+      e.preventDefault()
+      onNext()
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [feedback, onNext])
 
   function toggleMic() {
     if (listening) {
@@ -1450,7 +1580,13 @@ function FillInput({ typed, setTyped, feedback, answer, placeholder, hint, onSub
       {feedback === 'incorrect' && (
         <>
           <p style={{ fontSize: '13px', color: '#e53935', margin: '0 0 8px' }}>
-            Answer: <strong>{answer}</strong>
+            {typed.trim() && (
+              <>
+                <span style={{ textDecoration: 'line-through', opacity: 0.7 }}>{typed}</span>
+                {' → '}
+              </>
+            )}
+            <strong>{answer}</strong>
           </p>
           {hint && (
             <details style={{ marginBottom: '10px', fontSize: '12px', color: '#bbb' }}>

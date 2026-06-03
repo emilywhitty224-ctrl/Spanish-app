@@ -21,7 +21,7 @@ const FALSE_FRIENDS: Record<string, string> = {
 }
 
 // Common irregular yo-forms / stem changers worth flagging.
-const IRREGULAR_VERBS: Record<string, string> = {
+export const IRREGULAR_VERBS: Record<string, string> = {
   tener: 'Irregular: yo tengo, tú tienes, él tiene… (e→ie stem change, plus -go yo form).',
   venir: 'Irregular: yo vengo, tú vienes… (e→ie stem change, plus -go yo form).',
   hacer: 'Irregular yo form: yo hago. Past tense is also irregular (hice, hiciste…).',

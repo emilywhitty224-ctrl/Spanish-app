@@ -14,13 +14,22 @@ export interface ProfileStats {
   bestScores: Record<string, number> // mode id -> best percentage (0-100)
 }
 
+export interface SrsMistake {
+  typed: string
+  expected: string
+  when: number // epoch ms
+}
+
 export interface SrsEntry {
   mastery: number // 0-5
   nextReview: string // YYYY-MM-DD
   seen?: number // total times answered
   correct?: number // total correct
   lastSeen?: string // YYYY-MM-DD of last review
+  mistakes?: SrsMistake[] // ring buffer, capped at MISTAKE_BUFFER
 }
+
+const MISTAKE_BUFFER = 5
 
 // Days until next review, indexed by mastery level (0-5).
 const SRS_INTERVALS = [1, 1, 3, 7, 16, 35]
@@ -67,6 +76,8 @@ interface AppState {
   speechRate: number
   aiProvider: AiProvider
   aiApiKey: string | null
+  skipWarmup: boolean
+  strictAccents: boolean
   stats: Record<UserProfile, ProfileStats>
   customWords: VocabularyItem[]
   srs: Record<UserProfile, Record<string, SrsEntry>>
@@ -76,11 +87,14 @@ interface AppState {
   setSpeechRate: (rate: number) => void
   setAiProvider: (provider: AiProvider) => void
   setAiApiKey: (key: string | null) => void
+  setSkipWarmup: (skip: boolean) => void
+  setStrictAccents: (strict: boolean) => void
   recordResult: (mode: string, correct: number, total: number) => void
   addCustomWord: (word: VocabularyItem) => void
   removeCustomWord: (id: string) => void
   toggleActiveUse: (id: string) => void
-  reviewWord: (wordId: string, remembered: boolean) => void
+  reviewWord: (wordId: string, remembered: boolean, mistake?: { typed: string; expected: string }) => void
+  clearMistakesForWord: (wordId: string) => void
   getSnapshot: () => SyncSnapshot
   applySnapshot: (snapshot: SyncSnapshot) => void
 }
@@ -94,6 +108,8 @@ export const useStore = create<AppState>()(
       speechRate: 0.9,
       aiProvider: 'gemini',
       aiApiKey: null,
+      skipWarmup: false,
+      strictAccents: false,
       stats: { Emily: emptyStats(), Jocelyn: emptyStats() },
       customWords: [],
       srs: { Emily: {}, Jocelyn: {} },
@@ -104,6 +120,8 @@ export const useStore = create<AppState>()(
       setSpeechRate: (rate) => set({ speechRate: rate }),
       setAiProvider: (provider) => set({ aiProvider: provider }),
       setAiApiKey: (key) => set({ aiApiKey: key }),
+      setSkipWarmup: (skip) => set({ skipWarmup: skip }),
+      setStrictAccents: (strict) => set({ strictAccents: strict }),
 
       recordResult: (mode, correct, total) =>
         set((state) => {
@@ -151,7 +169,7 @@ export const useStore = create<AppState>()(
           ),
         })),
 
-      reviewWord: (wordId, remembered) =>
+      reviewWord: (wordId, remembered, mistake) =>
         set((state) => {
           const profile = state.userProfile
           const profSrs = state.srs[profile] ?? {}
@@ -160,6 +178,11 @@ export const useStore = create<AppState>()(
           const mastery = remembered
             ? Math.min(5, prevMastery + 1)
             : Math.max(0, prevMastery - 1)
+          let mistakes = prev?.mistakes
+          if (!remembered && mistake) {
+            const next: SrsMistake = { ...mistake, when: Date.now() }
+            mistakes = [...(mistakes ?? []), next].slice(-MISTAKE_BUFFER)
+          }
           return {
             srs: {
               ...state.srs,
@@ -171,8 +194,24 @@ export const useStore = create<AppState>()(
                   seen: (prev?.seen ?? 0) + 1,
                   correct: (prev?.correct ?? 0) + (remembered ? 1 : 0),
                   lastSeen: todayKey(),
+                  ...(mistakes && mistakes.length > 0 ? { mistakes } : {}),
                 },
               },
+            },
+          }
+        }),
+
+      clearMistakesForWord: (wordId) =>
+        set((state) => {
+          const profile = state.userProfile
+          const profSrs = state.srs[profile] ?? {}
+          const prev = profSrs[wordId]
+          if (!prev || !prev.mistakes || prev.mistakes.length === 0) return {}
+          const { mistakes: _drop, ...rest } = prev
+          return {
+            srs: {
+              ...state.srs,
+              [profile]: { ...profSrs, [wordId]: rest },
             },
           }
         }),

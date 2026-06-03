@@ -1,5 +1,23 @@
 // Accent-insensitive answer comparison with typo tolerance.
 
+import type { VocabularyItem } from '../types/vocabulary'
+import synonymsData from '../data/synonyms.json'
+
+const SYNONYMS = synonymsData as Record<string, string[]>
+
+/**
+ * Like checkAnswer, but augments the expected English translation with any
+ * curated synonyms for this vocab item. Use for Spanish-prompt → English-typed
+ * grading (otherwise pretty/beautiful/nice trip the learner up).
+ */
+export function checkAnswerForWord(typed: string, item: VocabularyItem, strictAccents = false): AnswerVerdict {
+  const extras = SYNONYMS[item.id]
+  const expected = extras && extras.length > 0
+    ? [item.english_translation, ...extras].join(' / ')
+    : item.english_translation
+  return checkAnswer(typed, expected, strictAccents)
+}
+
 export type AnswerVerdict = 'correct' | 'almost' | 'wrong'
 
 const PUNCT_RE = /[¡¿!?.,;:"'()]+/g
@@ -12,6 +30,73 @@ export function normalize(s: string): string {
     .replace(PUNCT_RE, ' ')
     .replace(/\s+/g, ' ')
     .trim()
+}
+
+// Expand a single expected answer into all the variants we'll accept.
+// Handles:
+//   • parenthesised clarifications being optional, e.g. "I like (one thing)"
+//     → ["I like", "I like one thing", "I like (one thing)"]
+//   • interchangeable verb-phrase prefixes: "I X" ↔ "to X" ↔ bare "X"
+//     so "to like multiple things" matches "I like (multiple things)".
+//   • a leading "to be " / "to do " is treated the same as no prefix
+//     (covers things like "to drink" vs "drink").
+const LEADING_ARTICLE_RE = /^(the|a|an|my|el|la|los|las|un|una)\s+/i
+const TRAILING_PRONOUN_RE = /\s+(me|it|them)$/i
+
+function expandVariants(raw: string): string[] {
+  const out = new Set<string>()
+  // 1. Parenthesised parts: keep, drop, or unwrap.
+  const withParens = raw
+  const withoutParens = raw.replace(/\s*\([^)]*\)/g, '').replace(/\s+/g, ' ').trim()
+  const unwrappedParens = raw.replace(/[()]/g, '').replace(/\s+/g, ' ').trim()
+  for (const v of [withParens, withoutParens, unwrappedParens]) {
+    if (!v) continue
+    out.add(v)
+    // 2. Verb-prefix swaps.
+    const lower = v.toLowerCase()
+    if (lower.startsWith('i ')) {
+      const rest = v.slice(2)
+      out.add(rest)
+      out.add('to ' + rest)
+    } else if (lower.startsWith('to ')) {
+      const rest = v.slice(3)
+      out.add(rest)
+      out.add('I ' + rest)
+    } else {
+      out.add('to ' + v)
+      out.add('I ' + v)
+    }
+  }
+  // 3. Leading article + trailing pronoun trims, applied across everything so far.
+  for (const v of [...out]) {
+    const noArticle = v.replace(LEADING_ARTICLE_RE, '').trim()
+    if (noArticle && noArticle !== v) out.add(noArticle)
+    const noPronoun = v.replace(TRAILING_PRONOUN_RE, '').trim()
+    if (noPronoun && noPronoun !== v) out.add(noPronoun)
+    const both = v.replace(LEADING_ARTICLE_RE, '').replace(TRAILING_PRONOUN_RE, '').trim()
+    if (both && both !== v) out.add(both)
+  }
+  return [...out]
+}
+
+// Strips diacritics for an accent-blind compare.
+function stripAccents(s: string): string {
+  return s.normalize('NFD').replace(/[̀-ͯ]/g, '')
+}
+
+// If `typed` matches `candidate` ignoring accents but not when accents are kept,
+// returns a short nudge naming the missing accented character. Otherwise null.
+export function accentNudge(typed: string, candidate: string): string | null {
+  const tLow = typed.toLowerCase().normalize('NFC')
+  const cLow = candidate.toLowerCase().normalize('NFC')
+  if (tLow === cLow) return null
+  if (stripAccents(tLow) !== stripAccents(cLow)) return null
+  // Find the first character in candidate that carries a diacritic missing in typed.
+  for (const ch of cLow) {
+    const bare = stripAccents(ch)
+    if (bare !== ch) return `Don't forget the accent on ${ch}.`
+  }
+  return 'Watch the accent.'
 }
 
 export function levenshtein(a: string, b: string): number {
@@ -41,13 +126,27 @@ export function levenshtein(a: string, b: string): number {
  * The expected answer may contain multiple acceptable forms separated by '/'
  * (e.g. "to be / to exist"); any match counts.
  */
-export function checkAnswer(typed: string, expected: string): AnswerVerdict {
+export function checkAnswer(typed: string, expected: string, strictAccents = false): AnswerVerdict {
   const t = normalize(typed)
   if (!t) return 'wrong'
-  const candidates = expected.split('/').map((s) => normalize(s)).filter(Boolean)
+  const candidates = expected
+    .split('/')
+    .flatMap((s) => expandVariants(s.trim()))
+    .map((s) => normalize(s))
+    .filter(Boolean)
   let bestDist = Infinity
   for (const c of candidates) {
-    if (t === c) return 'correct'
+    if (t === c) {
+      if (strictAccents) {
+        // Accent-sensitive recheck against the original (un-stripped) variants.
+        const accentPerfect = expected
+          .split('/')
+          .flatMap((s) => expandVariants(s.trim()))
+          .some((raw) => raw.toLowerCase().normalize('NFC') === typed.toLowerCase().normalize('NFC'))
+        if (!accentPerfect) return 'almost'
+      }
+      return 'correct'
+    }
     bestDist = Math.min(bestDist, levenshtein(t, c))
   }
   // Only forgive one-character typos on reasonably-long answers, else
