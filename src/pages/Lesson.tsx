@@ -281,25 +281,33 @@ export function Lesson() {
             {chatLoading && <div style={{ fontSize: '11px', color: '#888' }}>Barny is thinking…</div>}
             {chatTurns[0] && (() => {
               const sWords = chatTurns[0].barny.spanish.split(/\s+/)
+              const eWords = chatTurns[0].barny.english.split(/\s+/)
+              const eIdx = wordIdx >= 0
+                ? Math.round(wordIdx / Math.max(sWords.length - 1, 1) * Math.max(eWords.length - 1, 1))
+                : -1
               return (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '18px', color: 'var(--color-accent)' }}>
-                  <RotatingBarnyIcon size={120} />
-                  <span>{sWords.map((w, wi) => (
-                    <span key={wi} style={{ textDecoration: wi === wordIdx ? 'underline' : 'none' }}>{w}{' '}</span>
-                  ))}</span>
-                  {speechSupported && (
-                    <button
-                      className="xp-btn"
-                      style={{ fontSize: '10px', padding: '0 6px', marginLeft: '6px' }}
-                      onClick={() => { setWordIdx(-1); setTimeout(() => speak(chatTurns[0].barny.spanish, setWordIdx), 50) }}
-                    >🔊</button>
-                  )}
-                </div>
+                <>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '18px', color: 'var(--color-accent)' }}>
+                    <RotatingBarnyIcon size={120} />
+                    <span>{sWords.map((w, wi) => (
+                      <span key={wi} style={{ textDecoration: wi === wordIdx ? 'underline' : 'none', transition: 'text-decoration 0.1s' }}>{w}{' '}</span>
+                    ))}</span>
+                    {speechSupported && (
+                      <button
+                        className="xp-btn"
+                        style={{ fontSize: '10px', padding: '0 6px', marginLeft: '6px' }}
+                        onClick={() => { setWordIdx(-1); setTimeout(() => speak(chatTurns[0].barny.spanish, setWordIdx), 50) }}
+                      >🔊</button>
+                    )}
+                  </div>
+                  <div style={{ color: '#888', fontSize: '14px', marginLeft: '14px' }}>
+                    {eWords.map((w, wi) => (
+                      <span key={wi} style={{ color: wi === eIdx ? '#4caf50' : 'inherit', transition: 'color 0.1s' }}>{w}{' '}</span>
+                    ))}
+                  </div>
+                </>
               )
             })()}
-            {chatTurns[0] && (
-              <div style={{ color: '#888', fontSize: '14px', marginLeft: '14px' }}>{chatTurns[0].barny.english}</div>
-            )}
             {chatError && <div style={{ fontSize: '11px', color: '#e53935' }}>⚠️ {chatError}</div>}
             <button
               className="xp-btn xp-btn-primary"
@@ -398,20 +406,28 @@ export function Lesson() {
               {chatTurns.map((t, i) => {
                 const isLast = i === chatTurns.length - 1
                 const sWords = t.barny.spanish.split(/\s+/)
+                const eWords = t.barny.english.split(/\s+/)
                 const activeWordIdx = isLast ? wordIdx : -1
+                const eIdx = activeWordIdx >= 0
+                  ? Math.round(activeWordIdx / Math.max(sWords.length - 1, 1) * Math.max(eWords.length - 1, 1))
+                  : -1
                 return (
                   <div key={i} style={{ fontSize: '17px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                     <div style={{ color: 'var(--color-accent)', display: 'flex', alignItems: 'center', gap: '4px' }}>
                       <RotatingBarnyIcon size={120} />
                       <span>{sWords.map((w, wi) => (
-                        <span key={wi} style={{ textDecoration: wi === activeWordIdx ? 'underline' : 'none' }}>{w}{' '}</span>
+                        <span key={wi} style={{ textDecoration: wi === activeWordIdx ? 'underline' : 'none', transition: 'text-decoration 0.1s' }}>{w}{' '}</span>
                       ))}</span>
                       {speechSupported && (
                         <button className="xp-btn" style={{ fontSize: '10px', padding: '0 6px', marginLeft: '6px' }}
                           onClick={() => { setWordIdx(-1); setTimeout(() => speak(t.barny.spanish, setWordIdx), 50) }}>🔊</button>
                       )}
                     </div>
-                    <div style={{ color: '#777', fontSize: '14px', marginLeft: '14px' }}>{t.barny.english}</div>
+                    <div style={{ color: '#777', fontSize: '14px', marginLeft: '14px' }}>
+                      {eWords.map((w, wi) => (
+                        <span key={wi} style={{ color: wi === eIdx ? '#4caf50' : 'inherit', transition: 'color 0.1s' }}>{w}{' '}</span>
+                      ))}
+                    </div>
                     {t.user && (
                       <div style={{ color: '#ddd', marginLeft: '14px' }}>{t.user.spanish}</div>
                     )}
