@@ -480,10 +480,9 @@ export function Lesson() {
                       (text, isFinal) => {
                         const processed = isFinal ? applySpanishPunctuation(text) : text
                         setDraft(processed)
-                        if (isFinal && processed) {
+                        if (isFinal) {
                           chatStopRef.current?.()
                           setChatListening(false)
-                          sendChat(processed)
                         }
                       },
                       (err) => {

@@ -309,10 +309,9 @@ export function FreeChat() {
                       (text, isFinal) => {
                         const processed = isFinal ? applySpanishPunctuation(text) : text
                         setDraft(processed)
-                        if (isFinal && processed) {
+                        if (isFinal) {
                           stopListenRef.current?.()
                           setListening(false)
-                          send(processed)
                         }
                       },
                       (errorReason) => {
