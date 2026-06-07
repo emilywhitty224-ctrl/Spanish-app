@@ -27,6 +27,7 @@ interface SyncState {
   error: string | null
   userInfo: GoogleUserInfo | null
   connect: () => Promise<void>
+  reconnect: () => Promise<void>
   createFile: () => Promise<void>
   attachExisting: () => Promise<void>
   shareWith: (email: string) => Promise<void>
@@ -67,6 +68,25 @@ export const useSync = create<SyncState>((set, get) => ({
     } finally {
       set({ busy: false })
     }
+  },
+
+  // Startup path: if we connected before (have a saved fileId), try to grab a
+  // fresh access token silently — no popup. Works as long as there's still an
+  // active Google session and consent was granted before, so the user stays
+  // "logged in" across reloads. Falls back quietly to signed-out otherwise.
+  reconnect: async () => {
+    if (!driveConfigured || !get().fileId) return
+    try {
+      await initGoogle()
+      await gSignIn(false)
+      const info = await fetchUserInfo()
+      set({ userInfo: info, status: 'connected' })
+    } catch {
+      set({ status: 'signed-out' })
+      return
+    }
+    // pull() manages its own busy/error state and won't reset status on failure.
+    await get().pull()
   },
 
   // Owner path: upload current local data as a brand-new shared file.

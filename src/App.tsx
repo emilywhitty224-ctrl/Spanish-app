@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useStore } from './store/useStore'
-import { startAutoSync } from './sync/useSync'
+import { startAutoSync, useSync } from './sync/useSync'
 import { SplashScreen } from './pages/SplashScreen'
 import { Dashboard } from './pages/Dashboard'
 import { PlaceholderPage } from './pages/PlaceholderPage'
@@ -25,6 +25,9 @@ function AppShell() {
 
   useEffect(() => {
     startAutoSync()
+    // If we connected before, silently grab a fresh token (no popup) so the
+    // user stays "logged in" across reloads.
+    useSync.getState().reconnect()
   }, [])
 
   return (
