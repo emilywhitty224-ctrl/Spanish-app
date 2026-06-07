@@ -4,6 +4,7 @@ import { useStore } from '../store/useStore'
 import { XpWindow } from '../components/XpWindow'
 import { Barny } from '../components/Barny'
 import { extractVocabFromNotes } from '../utils/aiChat'
+import { lessonTagForDate } from '../utils/lessons'
 import type { VocabularyItem } from '../types/vocabulary'
 
 type Source = 'class' | 'app' | 'real-life'
@@ -63,7 +64,7 @@ export function AddWords() {
           spanish_word: w.spanish,
           english_translation: w.english,
           type: w.type,
-          tags: ['custom', source, 'from-notes'],
+          tags: ['custom', source, 'from-notes', lessonTagForDate()],
           mastery_level: 0,
           next_review_date: new Date().toISOString(),
           beginner_safe: true,
@@ -119,7 +120,7 @@ export function AddWords() {
       spanish_word: card.spanish,
       english_translation: card.english,
       type,
-      tags: ['custom', card.source],
+      tags: ['custom', card.source, lessonTagForDate()],
       mastery_level: 0,
       next_review_date: new Date().toISOString(),
       beginner_safe: true,

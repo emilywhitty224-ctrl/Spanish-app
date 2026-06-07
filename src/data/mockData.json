@@ -328,5 +328,395 @@
     "mastery_level": 0,
     "next_review_date": "2026-05-28T00:00:00.000Z",
     "beginner_safe": true
+  },
+  {
+    "id": "034",
+    "spanish_word": "las tapas",
+    "english_translation": "tapas",
+    "type": "noun",
+    "tags": ["lesson_27_06_26", "drinks", "opinions", "plural"],
+    "mastery_level": 0,
+    "next_review_date": "2026-05-28T00:00:00.000Z",
+    "beginner_safe": true
+  },
+  {
+    "id": "035",
+    "spanish_word": "las patatas fritas",
+    "english_translation": "chips / fries",
+    "type": "noun",
+    "tags": ["lesson_27_06_26", "drinks", "opinions", "plural"],
+    "mastery_level": 0,
+    "next_review_date": "2026-05-28T00:00:00.000Z",
+    "beginner_safe": true
+  },
+  {
+    "id": "036",
+    "spanish_word": "le gusta",
+    "english_translation": "he/she likes (one thing)",
+    "type": "phrase",
+    "tags": ["lesson_04_06_26", "opinions", "singular"],
+    "mastery_level": 0,
+    "next_review_date": "2026-06-04T00:00:00.000Z",
+    "beginner_safe": true
+  },
+  {
+    "id": "037",
+    "spanish_word": "le gustan",
+    "english_translation": "he/she likes (multiple things)",
+    "type": "phrase",
+    "tags": ["lesson_04_06_26", "opinions", "plural"],
+    "mastery_level": 0,
+    "next_review_date": "2026-06-04T00:00:00.000Z",
+    "beginner_safe": true
+  },
+  {
+    "id": "038",
+    "spanish_word": "le encanta",
+    "english_translation": "he/she loves",
+    "type": "phrase",
+    "tags": ["lesson_04_06_26", "opinions", "singular"],
+    "mastery_level": 0,
+    "next_review_date": "2026-06-04T00:00:00.000Z",
+    "beginner_safe": true
+  },
+  {
+    "id": "039",
+    "spanish_word": "no le gusta",
+    "english_translation": "he/she doesn't like",
+    "type": "phrase",
+    "tags": ["lesson_04_06_26", "opinions"],
+    "mastery_level": 0,
+    "next_review_date": "2026-06-04T00:00:00.000Z",
+    "beginner_safe": true
+  },
+  {
+    "id": "040",
+    "spanish_word": "le da igual",
+    "english_translation": "he/she doesn't mind",
+    "type": "phrase",
+    "tags": ["lesson_04_06_26", "opinions"],
+    "mastery_level": 0,
+    "next_review_date": "2026-06-04T00:00:00.000Z",
+    "beginner_safe": true
+  },
+  {
+    "id": "041",
+    "spanish_word": "¿Qué te gusta hacer?",
+    "english_translation": "What do you like to do?",
+    "type": "phrase",
+    "tags": ["lesson_04_06_26", "opinions", "hobbies"],
+    "mastery_level": 0,
+    "next_review_date": "2026-06-04T00:00:00.000Z",
+    "beginner_safe": true
+  },
+  {
+    "id": "042",
+    "spanish_word": "las bebidas sin alcohol",
+    "english_translation": "soft drinks / non-alcoholic drinks",
+    "type": "noun",
+    "tags": ["lesson_04_06_26", "drinks", "plural"],
+    "mastery_level": 0,
+    "next_review_date": "2026-06-04T00:00:00.000Z",
+    "beginner_safe": true
+  },
+  {
+    "id": "043",
+    "spanish_word": "vegetariano/a",
+    "english_translation": "vegetarian",
+    "type": "adjective",
+    "tags": ["lesson_04_06_26", "drinks"],
+    "mastery_level": 0,
+    "next_review_date": "2026-06-04T00:00:00.000Z",
+    "beginner_safe": true
+  },
+  {
+    "id": "044",
+    "spanish_word": "vegano/a",
+    "english_translation": "vegan",
+    "type": "adjective",
+    "tags": ["lesson_04_06_26", "drinks"],
+    "mastery_level": 0,
+    "next_review_date": "2026-06-04T00:00:00.000Z",
+    "beginner_safe": true
+  },
+  {
+    "id": "045",
+    "spanish_word": "hacer",
+    "english_translation": "to do / to make",
+    "type": "verb",
+    "tags": ["lesson_04_06_26", "hobbies"],
+    "mastery_level": 0,
+    "next_review_date": "2026-06-04T00:00:00.000Z",
+    "beginner_safe": true
+  },
+  {
+    "id": "046",
+    "spanish_word": "hacer malabares",
+    "english_translation": "to juggle",
+    "type": "phrase",
+    "tags": ["lesson_04_06_26", "hobbies"],
+    "mastery_level": 0,
+    "next_review_date": "2026-06-04T00:00:00.000Z",
+    "beginner_safe": true
+  },
+  {
+    "id": "047",
+    "spanish_word": "leer",
+    "english_translation": "to read",
+    "type": "verb",
+    "tags": ["lesson_04_06_26", "hobbies"],
+    "mastery_level": 0,
+    "next_review_date": "2026-06-04T00:00:00.000Z",
+    "beginner_safe": true
+  },
+  {
+    "id": "048",
+    "spanish_word": "escuchar música",
+    "english_translation": "to listen to music",
+    "type": "phrase",
+    "tags": ["lesson_04_06_26", "hobbies"],
+    "mastery_level": 0,
+    "next_review_date": "2026-06-04T00:00:00.000Z",
+    "beginner_safe": true
+  },
+  {
+    "id": "049",
+    "spanish_word": "bailar",
+    "english_translation": "to dance",
+    "type": "verb",
+    "tags": ["lesson_04_06_26", "hobbies"],
+    "mastery_level": 0,
+    "next_review_date": "2026-06-04T00:00:00.000Z",
+    "beginner_safe": true
+  },
+  {
+    "id": "050",
+    "spanish_word": "dormir",
+    "english_translation": "to sleep",
+    "type": "verb",
+    "tags": ["lesson_04_06_26", "hobbies"],
+    "mastery_level": 0,
+    "next_review_date": "2026-06-04T00:00:00.000Z",
+    "beginner_safe": true
+  },
+  {
+    "id": "051",
+    "spanish_word": "como",
+    "english_translation": "I eat",
+    "type": "verb",
+    "tags": ["lesson_04_06_26", "hobbies", "yo-form"],
+    "mastery_level": 0,
+    "next_review_date": "2026-06-04T00:00:00.000Z",
+    "beginner_safe": true
+  },
+  {
+    "id": "052",
+    "spanish_word": "bebo",
+    "english_translation": "I drink",
+    "type": "verb",
+    "tags": ["lesson_04_06_26", "hobbies", "yo-form"],
+    "mastery_level": 0,
+    "next_review_date": "2026-06-04T00:00:00.000Z",
+    "beginner_safe": true
+  },
+  {
+    "id": "053",
+    "spanish_word": "chateo",
+    "english_translation": "I chat",
+    "type": "verb",
+    "tags": ["lesson_04_06_26", "hobbies", "yo-form"],
+    "mastery_level": 0,
+    "next_review_date": "2026-06-04T00:00:00.000Z",
+    "beginner_safe": true
+  },
+  {
+    "id": "054",
+    "spanish_word": "nado",
+    "english_translation": "I swim",
+    "type": "verb",
+    "tags": ["lesson_04_06_26", "hobbies", "yo-form"],
+    "mastery_level": 0,
+    "next_review_date": "2026-06-04T00:00:00.000Z",
+    "beginner_safe": true
+  },
+  {
+    "id": "055",
+    "spanish_word": "juego",
+    "english_translation": "I play",
+    "type": "verb",
+    "tags": ["lesson_04_06_26", "hobbies", "yo-form"],
+    "mastery_level": 0,
+    "next_review_date": "2026-06-04T00:00:00.000Z",
+    "beginner_safe": true
+  },
+  {
+    "id": "056",
+    "spanish_word": "trabajo",
+    "english_translation": "I work",
+    "type": "verb",
+    "tags": ["lesson_04_06_26", "hobbies", "yo-form"],
+    "mastery_level": 0,
+    "next_review_date": "2026-06-04T00:00:00.000Z",
+    "beginner_safe": true
+  },
+  {
+    "id": "057",
+    "spanish_word": "tomo las fotos",
+    "english_translation": "I take photos",
+    "type": "phrase",
+    "tags": ["lesson_04_06_26", "hobbies", "yo-form"],
+    "mastery_level": 0,
+    "next_review_date": "2026-06-04T00:00:00.000Z",
+    "beginner_safe": true
+  },
+  {
+    "id": "058",
+    "spanish_word": "la pareja",
+    "english_translation": "partner",
+    "type": "noun",
+    "tags": ["lesson_04_06_26", "family"],
+    "mastery_level": 0,
+    "next_review_date": "2026-06-04T00:00:00.000Z",
+    "beginner_safe": true
+  },
+  {
+    "id": "059",
+    "spanish_word": "la madre",
+    "english_translation": "mother",
+    "type": "noun",
+    "tags": ["lesson_04_06_26", "family"],
+    "mastery_level": 0,
+    "next_review_date": "2026-06-04T00:00:00.000Z",
+    "beginner_safe": true
+  },
+  {
+    "id": "060",
+    "spanish_word": "la mamá",
+    "english_translation": "mum",
+    "type": "noun",
+    "tags": ["lesson_04_06_26", "family"],
+    "mastery_level": 0,
+    "next_review_date": "2026-06-04T00:00:00.000Z",
+    "beginner_safe": true
+  },
+  {
+    "id": "061",
+    "spanish_word": "el padre",
+    "english_translation": "father",
+    "type": "noun",
+    "tags": ["lesson_04_06_26", "family"],
+    "mastery_level": 0,
+    "next_review_date": "2026-06-04T00:00:00.000Z",
+    "beginner_safe": true
+  },
+  {
+    "id": "062",
+    "spanish_word": "el papá",
+    "english_translation": "dad",
+    "type": "noun",
+    "tags": ["lesson_04_06_26", "family"],
+    "mastery_level": 0,
+    "next_review_date": "2026-06-04T00:00:00.000Z",
+    "beginner_safe": true
+  },
+  {
+    "id": "063",
+    "spanish_word": "los padres",
+    "english_translation": "parents",
+    "type": "noun",
+    "tags": ["lesson_04_06_26", "family", "plural"],
+    "mastery_level": 0,
+    "next_review_date": "2026-06-04T00:00:00.000Z",
+    "beginner_safe": true
+  },
+  {
+    "id": "064",
+    "spanish_word": "el hermano",
+    "english_translation": "brother",
+    "type": "noun",
+    "tags": ["lesson_04_06_26", "family"],
+    "mastery_level": 0,
+    "next_review_date": "2026-06-04T00:00:00.000Z",
+    "beginner_safe": true
+  },
+  {
+    "id": "065",
+    "spanish_word": "la hermana",
+    "english_translation": "sister",
+    "type": "noun",
+    "tags": ["lesson_04_06_26", "family"],
+    "mastery_level": 0,
+    "next_review_date": "2026-06-04T00:00:00.000Z",
+    "beginner_safe": true
+  },
+  {
+    "id": "066",
+    "spanish_word": "los hermanos",
+    "english_translation": "siblings",
+    "type": "noun",
+    "tags": ["lesson_04_06_26", "family", "plural"],
+    "mastery_level": 0,
+    "next_review_date": "2026-06-04T00:00:00.000Z",
+    "beginner_safe": true
+  },
+  {
+    "id": "067",
+    "spanish_word": "el abuelo",
+    "english_translation": "grandfather / grandad",
+    "type": "noun",
+    "tags": ["lesson_04_06_26", "family"],
+    "mastery_level": 0,
+    "next_review_date": "2026-06-04T00:00:00.000Z",
+    "beginner_safe": true
+  },
+  {
+    "id": "068",
+    "spanish_word": "la abuela",
+    "english_translation": "grandmother / grandma",
+    "type": "noun",
+    "tags": ["lesson_04_06_26", "family"],
+    "mastery_level": 0,
+    "next_review_date": "2026-06-04T00:00:00.000Z",
+    "beginner_safe": true
+  },
+  {
+    "id": "069",
+    "spanish_word": "los abuelos",
+    "english_translation": "grandparents",
+    "type": "noun",
+    "tags": ["lesson_04_06_26", "family", "plural"],
+    "mastery_level": 0,
+    "next_review_date": "2026-06-04T00:00:00.000Z",
+    "beginner_safe": true
+  },
+  {
+    "id": "070",
+    "spanish_word": "el tío",
+    "english_translation": "uncle",
+    "type": "noun",
+    "tags": ["lesson_04_06_26", "family"],
+    "mastery_level": 0,
+    "next_review_date": "2026-06-04T00:00:00.000Z",
+    "beginner_safe": true
+  },
+  {
+    "id": "071",
+    "spanish_word": "la tía",
+    "english_translation": "aunt",
+    "type": "noun",
+    "tags": ["lesson_04_06_26", "family"],
+    "mastery_level": 0,
+    "next_review_date": "2026-06-04T00:00:00.000Z",
+    "beginner_safe": true
+  },
+  {
+    "id": "072",
+    "spanish_word": "los tíos",
+    "english_translation": "uncles and aunts",
+    "type": "noun",
+    "tags": ["lesson_04_06_26", "family", "plural"],
+    "mastery_level": 0,
+    "next_review_date": "2026-06-04T00:00:00.000Z",
+    "beginner_safe": true
   }
 ]

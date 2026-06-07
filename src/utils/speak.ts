@@ -113,9 +113,11 @@ function pickVoice(): SpeechSynthesisVoice | null {
     const chosen = getVoices().find((v) => v.voiceURI === voiceURI)
     if (chosen) return chosen
   }
-  // Prefer Spain Spanish, then any Spanish voice, then nothing.
+  // Default (Auto): prefer "Google español (es-ES)", then any Spain Spanish,
+  // then any Spanish voice, then nothing.
+  const esES = spanish.filter((v) => v.lang.toLowerCase() === 'es-es')
   return (
-    spanish.find((v) => v.lang.toLowerCase() === 'es-es') ?? spanish[0] ?? null
+    esES.find((v) => /google/i.test(v.name)) ?? esES[0] ?? spanish[0] ?? null
   )
 }
 

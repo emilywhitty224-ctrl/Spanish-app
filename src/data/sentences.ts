@@ -55,6 +55,36 @@ export const SENTENCES: Sentence[] = [
   { id: 's28', spanish: 'Hoy hace mucho calor',         english: "Today it's very hot",           blank: 'calor',   tags: ['responses'] },
   { id: 's29', spanish: 'Vivo en una ciudad pequeña',   english: 'I live in a small city',        blank: 'ciudad',  tags: ['responses'] },
   { id: 's30', spanish: 'Tengo dos hermanos mayores',   english: 'I have two older brothers',     blank: 'hermanos', tags: ['responses'] },
+
+  // ── Lesson 27/06/26: opinions + gusta/gustan + free time ──
+  // Asking "do you like…?" — gusta for ONE thing/action.
+  { id: 's31', spanish: '¿Te gusta beber agua?',           english: 'Do you like to drink water?',       blank: 'gusta',  tags: ['opinions', 'drinks'] },
+  { id: 's32', spanish: '¿Te gusta beber vino tinto?',     english: 'Do you like to drink red wine?',    blank: 'gusta',  tags: ['opinions', 'drinks'] },
+  { id: 's33', spanish: '¿Te gusta la sangría?',           english: 'Do you like sangria?',              blank: 'gusta',  tags: ['opinions', 'drinks'] },
+  // gustan for MORE THAN ONE thing (the agreement contrast).
+  { id: 's34', spanish: '¿Te gustan las patatas fritas?',  english: 'Do you like chips?',                blank: 'gustan', tags: ['opinions', 'drinks'] },
+  { id: 's35', spanish: 'Me gustan las tapas',             english: 'I like tapas',                      blank: 'gustan', tags: ['opinions', 'drinks'] },
+  { id: 's36', spanish: 'Me encanta el vino tinto',        english: 'I love red wine',                   blank: 'encanta', tags: ['opinions', 'drinks'] },
+  // Structure: en mi tiempo libre + opinion + the action.
+  { id: 's37', spanish: 'En mi tiempo libre me gusta nadar', english: 'In my free time I like to swim',  blank: 'nadar',  tags: ['opinions', 'hobbies'] },
+  { id: 's38', spanish: 'Me da igual trabajar',            english: "I don't mind working",             blank: 'igual',  tags: ['opinions', 'hobbies'] },
+  { id: 's39', spanish: 'No me interesa jugar en línea',   english: "I'm not interested in playing online", blank: 'interesa', tags: ['opinions', 'hobbies'] },
+  { id: 's40', spanish: 'Odio comer pescado',             english: 'I hate eating fish',                blank: 'Odio',   tags: ['opinions'] },
+
+  // ── Lesson 04/06/26: le gusta, ¿qué te gusta hacer?, hobbies ──
+  // Talking about other people — "a + person + le gusta".
+  { id: 's41', spanish: 'A mi hermana le gusta mucho nadar',      english: 'My sister really likes swimming',     blank: 'gusta',  tags: ['opinions', 'family', 'hobbies'] },
+  { id: 's42', spanish: 'A mi papá no le gusta trabajar',         english: "My dad doesn't like working",         blank: 'gusta',  tags: ['opinions', 'family', 'hobbies'] },
+  { id: 's43', spanish: 'A tu hermano le gustan las bebidas sin alcohol', english: 'Your brother likes soft drinks', blank: 'gustan', tags: ['opinions', 'family', 'drinks'] },
+  { id: 's44', spanish: 'A mi madre le encanta bailar',          english: 'My mother loves dancing',             blank: 'encanta', tags: ['opinions', 'family', 'hobbies'] },
+  // Asking what someone likes to do — gusta + the infinitive.
+  { id: 's45', spanish: '¿Qué te gusta hacer?',                  english: 'What do you like to do?',             blank: 'hacer',  tags: ['opinions', 'hobbies'] },
+  { id: 's46', spanish: 'Me gusta leer y escuchar música',       english: 'I like reading and listening to music', blank: 'leer',  tags: ['opinions', 'hobbies'] },
+  { id: 's47', spanish: 'En mi tiempo libre hago malabares',     english: 'In my free time I juggle',            blank: 'hago',   tags: ['hobbies'] },
+  // The yo (-o) form vs the infinitive.
+  { id: 's48', spanish: 'Como pescado pero bebo agua',           english: 'I eat fish but I drink water',        blank: 'bebo',   tags: ['hobbies', 'drinks'] },
+  { id: 's49', spanish: 'Juego al fútbol los domingos',          english: 'I play football on Sundays',          blank: 'Juego',  tags: ['hobbies'] },
+  { id: 's50', spanish: 'Soy vegetariano',                       english: 'I am vegetarian',                     blank: 'vegetariano', tags: ['drinks'] },
 ]
 
 /** Pick a random distinct subset of n sentences. */

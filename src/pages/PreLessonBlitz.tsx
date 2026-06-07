@@ -2,20 +2,7 @@ import { useMemo } from 'react'
 import { RevisionGame } from '../components/RevisionGame'
 import { useVocab } from '../data/useVocab'
 import { useStore } from '../store/useStore'
-
-function latestLessonTag(vocab: { tags: string[] }[]): string | null {
-  let best: string | null = null
-  let bestKey = ''
-  vocab.forEach((v) =>
-    v.tags.forEach((t) => {
-      if (!t.startsWith('lesson_')) return
-      const [, dd, mm, yy] = t.split('_')
-      const key = `${yy}${mm}${dd}`
-      if (key > bestKey) { bestKey = key; best = t }
-    })
-  )
-  return best
-}
+import { latestLessonTag } from '../utils/lessons'
 
 export function PreLessonBlitz() {
   const allVocab = useVocab()

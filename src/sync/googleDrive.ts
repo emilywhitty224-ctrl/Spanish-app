@@ -59,6 +59,22 @@ export function isSignedIn(): boolean {
   return accessToken !== null
 }
 
+// Turn a Google Identity Services error type into something actionable. The
+// most common one in normal use is `popup_closed`: the sign-in window closed
+// before a token came back — usually because this site's origin isn't on the
+// OAuth client's "Authorized JavaScript origins" list, a popup blocker stopped
+// it, or the window was dismissed.
+function describeSignInError(type?: string): string {
+  switch (type) {
+    case 'popup_closed':
+      return 'Sign-in window closed before finishing. Allow popups for this site, or add this URL to the Google OAuth client’s Authorized JavaScript origins, then try again.'
+    case 'popup_failed_to_open':
+      return 'Couldn’t open the sign-in window — check your popup blocker and try again.'
+    default:
+      return type ? `Sign-in failed: ${type}` : 'Sign-in failed'
+  }
+}
+
 export function signIn(interactive = true): Promise<string> {
   return new Promise((resolve, reject) => {
     if (!tokenClient) return reject(new Error('Google not initialised'))
@@ -71,7 +87,7 @@ export function signIn(interactive = true): Promise<string> {
     // client's Authorized JavaScript origins) never fires the callback and the
     // sign-in promise hangs forever.
     tokenClient.error_callback = (err: any) => {
-      reject(new Error(err?.type ? `Sign-in failed: ${err.type}` : 'Sign-in failed'))
+      reject(new Error(describeSignInError(err?.type)))
     }
     // An empty prompt attempts a silent token; 'consent' forces the chooser.
     tokenClient.requestAccessToken({ prompt: interactive ? 'select_account' : '' })
