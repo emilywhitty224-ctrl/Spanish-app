@@ -5,19 +5,6 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>spanish-app</title>
-    <script>
-      // Decode the path that 404.html stashed in the query string, so the
-      // React router sees the original deep-link URL.
-      (function () {
-        var l = window.location;
-        if (l.search[1] === '/') {
-          var decoded = l.search.slice(1).split('&').map(function (s) {
-            return s.replace(/~and~/g, '&');
-          }).join('?');
-          window.history.replaceState(null, '', l.pathname.slice(0, -1) + decoded + l.hash);
-        }
-      })();
-    </script>
   </head>
   <body>
     <div id="root"></div>
