@@ -14,6 +14,7 @@ import { AddWords } from './pages/AddWords'
 import { Basics } from './pages/Basics'
 import { Settings } from './pages/Settings'
 import { PreLessonBlitz } from './pages/PreLessonBlitz'
+import { ReconnectBanner } from './components/ReconnectBanner'
 import './index.css'
 
 function AppShell() {
@@ -32,6 +33,7 @@ function AppShell() {
 
   return (
     <BrowserRouter basename={import.meta.env.BASE_URL}>
+      <ReconnectBanner />
       <Routes>
         <Route path="/" element={<SplashScreen />} />
         <Route path="/dashboard" element={<Dashboard />} />

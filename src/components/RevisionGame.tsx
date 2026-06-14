@@ -169,7 +169,7 @@ const ICON_PATHS: Record<RevisionMode, string> = {
   'conjugation':       'M4 6h16 M4 12h16 M4 18h16 M8 4v16 M16 4v16',
 }
 
-function SpeakButton({ text }: { text: string }) {
+function SpeakButton({ text, lang }: { text: string; lang?: string }) {
   if (!speechSupported) return null
   return (
     <button
@@ -177,7 +177,7 @@ function SpeakButton({ text }: { text: string }) {
       aria-label="Hear pronunciation"
       title="Hear it in Spanish"
       style={{ minWidth: 'auto', padding: '4px 8px', marginLeft: '8px', verticalAlign: 'middle' }}
-      onClick={(e) => { e.stopPropagation(); speak(text) }}
+      onClick={(e) => { e.stopPropagation(); speak(text, undefined, lang) }}
     >
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent)" strokeWidth={2} strokeLinejoin="round" style={{ display: 'block' }}>
         <path d="M4 9h4l5-4v14l-5-4H4z" fill="var(--color-accent)" />
@@ -1576,6 +1576,7 @@ function FillInput({ typed, setTyped, feedback, answer, placeholder, hint, onSub
       {feedback === 'almost' && (
         <p style={{ fontSize: '13px', color: '#ff9800', margin: '0 0 8px' }}>
           Almost — typo. Correct spelling: <strong>{answer}</strong>
+          <SpeakButton text={answer} lang={speechLang} />
         </p>
       )}
       {feedback === 'incorrect' && (
@@ -1588,6 +1589,7 @@ function FillInput({ typed, setTyped, feedback, answer, placeholder, hint, onSub
               </>
             )}
             <strong>{answer}</strong>
+            <SpeakButton text={answer} lang={speechLang} />
           </p>
           {hint && (
             <details style={{ marginBottom: '10px', fontSize: '12px', color: '#bbb' }}>
