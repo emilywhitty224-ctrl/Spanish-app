@@ -474,3 +474,9 @@ export function categoryToVocab(cat: Category): VocabularyItem[] {
     beginner_safe: true,
   }))
 }
+
+// Every Basics word across all categories, in the RevisionGame vocab shape.
+// Used when the learner opts to fold Basics into the Weekly Sprint.
+export function allBasicsVocab(): VocabularyItem[] {
+  return CATEGORIES.flatMap(categoryToVocab)
+}

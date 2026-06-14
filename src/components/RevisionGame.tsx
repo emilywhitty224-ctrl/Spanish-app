@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from 'react'
+import { useState, useMemo, useEffect, useRef, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { XpWindow } from './XpWindow'
 import { Barny } from './Barny'
@@ -248,9 +248,11 @@ export interface RevisionGameProps {
   exitTo: string
   onWordResult?: (wordId: string, correct: boolean) => void
   autoStart?: RevisionMode
+  /** Optional extra UI shown on the mode-select screen (e.g. a deck toggle). */
+  headerSlot?: ReactNode
 }
 
-export function RevisionGame({ title, icon, vocab: allVocab, deckLabel, exitTo, onWordResult, autoStart }: RevisionGameProps) {
+export function RevisionGame({ title, icon, vocab: allVocab, deckLabel, exitTo, onWordResult, autoStart, headerSlot }: RevisionGameProps) {
   const navigate = useNavigate()
   const recordResult = useStore((s) => s.recordResult)
   const srs = useStore((s) => s.srs?.[s.userProfile] ?? {})
@@ -647,6 +649,7 @@ export function RevisionGame({ title, icon, vocab: allVocab, deckLabel, exitTo, 
                 ← Dashboard
               </button>
             </div>
+            {headerSlot}
             <div style={{ marginBottom: '4px' }}>
               <Barny
                 message={vocab.length === 0

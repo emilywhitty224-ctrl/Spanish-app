@@ -78,6 +78,7 @@ interface AppState {
   aiApiKey: string | null
   skipWarmup: boolean
   strictAccents: boolean
+  includeBasicsInSprint: boolean
   stats: Record<UserProfile, ProfileStats>
   customWords: VocabularyItem[]
   srs: Record<UserProfile, Record<string, SrsEntry>>
@@ -89,6 +90,7 @@ interface AppState {
   setAiApiKey: (key: string | null) => void
   setSkipWarmup: (skip: boolean) => void
   setStrictAccents: (strict: boolean) => void
+  setIncludeBasicsInSprint: (include: boolean) => void
   recordResult: (mode: string, correct: number, total: number) => void
   addCustomWord: (word: VocabularyItem) => void
   removeCustomWord: (id: string) => void
@@ -110,6 +112,7 @@ export const useStore = create<AppState>()(
       aiApiKey: null,
       skipWarmup: false,
       strictAccents: false,
+      includeBasicsInSprint: false,
       stats: { Emily: emptyStats(), Jocelyn: emptyStats() },
       customWords: [],
       srs: { Emily: {}, Jocelyn: {} },
@@ -122,6 +125,7 @@ export const useStore = create<AppState>()(
       setAiApiKey: (key) => set({ aiApiKey: key }),
       setSkipWarmup: (skip) => set({ skipWarmup: skip }),
       setStrictAccents: (strict) => set({ strictAccents: strict }),
+      setIncludeBasicsInSprint: (include) => set({ includeBasicsInSprint: include }),
 
       recordResult: (mode, correct, total) =>
         set((state) => {

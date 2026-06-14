@@ -4,6 +4,7 @@ import { XpWindow } from '../components/XpWindow'
 import { RevisionGame } from '../components/RevisionGame'
 import { useStore } from '../store/useStore'
 import { speak, speechSupported, recognitionSupported, startListening, describeRecognitionError } from '../utils/speak'
+import { checkAnswer, almostMessage } from '../utils/answerCheck'
 import {
   CATEGORIES,
   categoryById,
@@ -15,16 +16,6 @@ import {
 } from '../data/basics'
 
 type Mode = 'browse' | 'challenge'
-
-function norm(s: string): string {
-  return s
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .toLowerCase()
-    .replace(/[¿?¡!.,;:]/g, '')
-    .replace(/\s+/g, ' ')
-    .trim()
-}
 
 function numberToSpanish(n: number): string {
   if (n === 0) return 'cero'
@@ -70,6 +61,8 @@ function randomNum(range: ChallengeRange, avoid?: number): number {
 
 export function Basics() {
   const navigate = useNavigate()
+  const includeBasics = useStore((s) => s.includeBasicsInSprint)
+  const setIncludeBasics = useStore((s) => s.setIncludeBasicsInSprint)
   const [activeId, setActiveId] = useState<CategoryId | null>(null)
   const [mode, setMode] = useState<Mode>('browse')
   const [selected, setSelected] = useState<Set<CategoryId>>(new Set())
@@ -146,7 +139,23 @@ export function Basics() {
             🎮 Revise selected ({selected.size})
           </button>
 
-          <button className="xp-btn" style={{ marginTop: '10px' }} onClick={() => navigate('/dashboard')}>
+          <label
+            style={{
+              display: 'flex', alignItems: 'center', gap: '8px',
+              fontSize: '12px', color: '#bbb', cursor: 'pointer',
+              marginTop: '12px', padding: '8px 0',
+              borderTop: '1px solid var(--color-button-shadow)',
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={includeBasics}
+              onChange={(e) => setIncludeBasics(e.target.checked)}
+            />
+            ➕ Also revise these in Campaign 1 (Weekly Sprint)
+          </label>
+
+          <button className="xp-btn" style={{ marginTop: '6px' }} onClick={() => navigate('/dashboard')}>
             ← Dashboard
           </button>
         </XpWindow>
@@ -271,10 +280,11 @@ function BrowseList({ entries }: { entries: Entry[] }) {
 }
 
 function NumberChallenge() {
+  const strictAccents = useStore((s) => s.strictAccents)
   const [range, setRange] = useState<ChallengeRange>('easy')
   const [current, setCurrent] = useState<number>(() => randomNum('easy'))
   const [typed, setTyped] = useState('')
-  const [feedback, setFeedback] = useState<'correct' | 'incorrect' | null>(null)
+  const [feedback, setFeedback] = useState<'correct' | 'almost' | 'incorrect' | null>(null)
   const [correct, setCorrect] = useState(0)
   const [total, setTotal] = useState(0)
   const [listening, setListening] = useState(false)
@@ -299,8 +309,11 @@ function NumberChallenge() {
   function submit() {
     if (feedback) { next(); return }
     if (!typed.trim()) return
-    const ok = norm(typed) === norm(answer)
-    setFeedback(ok ? 'correct' : 'incorrect')
+    const verdict = checkAnswer(typed, answer, strictAccents)
+    // A one-letter typo or missing accent ('almost') still counts as correct —
+    // we just show the proper spelling as a nudge.
+    const ok = verdict !== 'wrong'
+    setFeedback(verdict === 'wrong' ? 'incorrect' : verdict)
     setCorrect((c) => c + (ok ? 1 : 0))
     setTotal((t) => t + 1)
   }
@@ -346,7 +359,7 @@ function NumberChallenge() {
           style={{
             flex: 1, padding: '8px 10px', fontSize: '14px',
             background: '#1a1a1a',
-            border: `2px solid ${feedback === 'correct' ? '#4caf50' : feedback === 'incorrect' ? '#e53935' : listening ? '#2196f3' : 'var(--color-accent)'}`,
+            border: `2px solid ${feedback === 'correct' ? '#4caf50' : feedback === 'almost' ? '#ffb300' : feedback === 'incorrect' ? '#e53935' : listening ? '#2196f3' : 'var(--color-accent)'}`,
             borderRadius: '3px', color: '#fff', outline: 'none', boxSizing: 'border-box',
           }}
         />
@@ -385,6 +398,14 @@ function NumberChallenge() {
       {feedback === 'correct' && (
         <div style={{ fontSize: '14px', color: '#4caf50' }}>✓ {answer}</div>
       )}
+      {feedback === 'almost' && (() => {
+        const { msg, showAnswer } = almostMessage(typed, answer)
+        return (
+          <div style={{ fontSize: '14px', color: '#ffb300' }}>
+            ✓ {msg}{showAnswer && <> <strong>{answer}</strong></>}
+          </div>
+        )
+      })()}
       {feedback === 'incorrect' && (
         <div style={{ fontSize: '14px', color: '#e53935' }}>
           ✗{typed.trim() && (
