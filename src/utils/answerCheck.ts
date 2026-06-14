@@ -99,6 +99,21 @@ export function accentNudge(typed: string, candidate: string): string | null {
   return 'Watch the accent.'
 }
 
+// Common English suffixes that turn one accepted answer into a familiar variant
+// of the same word — diminutives and plurals. Lets "auntie" pass for "aunt",
+// "doggy" for "dog", "cats" for "cat", etc.
+const VARIANT_SUFFIXES = new Set(['s', 'es', 'ie', 'ies', 'y', 'ey', 'gy', 'my'])
+
+// True when `a` and `b` are the same word save for one of the variant suffixes
+// above (in either direction). Both must share a stem of at least 3 letters so
+// short words like "car"/"cars" don't bleed into unrelated words.
+function isVariant(a: string, b: string): boolean {
+  if (a === b) return false
+  const [short, long] = a.length <= b.length ? [a, b] : [b, a]
+  if (short.length < 3 || !long.startsWith(short)) return false
+  return VARIANT_SUFFIXES.has(long.slice(short.length))
+}
+
 export function levenshtein(a: string, b: string): number {
   if (a === b) return 0
   if (a.length === 0) return b.length
@@ -135,6 +150,7 @@ export function checkAnswer(typed: string, expected: string, strictAccents = fal
     .map((s) => normalize(s))
     .filter(Boolean)
   let bestDist = Infinity
+  let lenient = false
   for (const c of candidates) {
     if (t === c) {
       if (strictAccents) {
@@ -148,10 +164,36 @@ export function checkAnswer(typed: string, expected: string, strictAccents = fal
       return 'correct'
     }
     bestDist = Math.min(bestDist, levenshtein(t, c))
+    if (isVariant(t, c)) lenient = true
   }
   // Only forgive one-character typos on reasonably-long answers, else
   // single-letter words like "a" vs "o" would all read as "almost".
   const minLen = Math.min(...candidates.map((c) => c.length))
   if (bestDist <= 1 && minLen >= 4) return 'almost'
+  // A close diminutive/plural of the right word counts too — we'll nudge them
+  // toward the standard form rather than marking it wrong outright.
+  if (lenient) return 'almost'
   return 'wrong'
+}
+
+/**
+ * Picks the right one-line note to show alongside an 'almost' verdict.
+ *   • accent slip  → name the missing accent
+ *   • close variant → gently point at the standard form
+ *   • otherwise    → it was a spelling typo
+ * `showAnswer` says whether the caller should print the correct answer after.
+ */
+export function almostMessage(typed: string, answer: string): { msg: string; showAnswer: boolean } {
+  const accent = accentNudge(typed, answer)
+  if (accent) return { msg: accent, showAnswer: false }
+  const t = normalize(typed)
+  const candidates = answer
+    .split('/')
+    .flatMap((s) => expandVariants(s.trim()))
+    .map((s) => normalize(s))
+    .filter(Boolean)
+  if (candidates.some((c) => isVariant(t, c))) {
+    return { msg: "That works! The more standard answer is", showAnswer: true }
+  }
+  return { msg: 'Almost — the correct spelling is', showAnswer: true }
 }

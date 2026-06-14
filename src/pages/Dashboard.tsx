@@ -90,7 +90,7 @@ export function Dashboard() {
             >
               <div style={{ fontSize: '16px', marginBottom: '4px' }}>🌱 Basics</div>
               <div style={{ fontSize: '12px', fontWeight: 'normal', color: '#444' }}>
-                Family, numbers (0–1000), food &amp; drink — browse or practice
+                Family, numbers, food, hobbies, colours, greetings — browse or full practice
               </div>
             </button>
 

@@ -5,7 +5,7 @@ import { Barny } from './Barny'
 import type { BarneyPose } from './Barny'
 import { useStore } from '../store/useStore'
 import { pickDueFirst } from '../utils/srs'
-import { checkAnswer, checkAnswerForWord } from '../utils/answerCheck'
+import { checkAnswer, checkAnswerForWord, almostMessage } from '../utils/answerCheck'
 import { getHint } from '../utils/hints'
 import { CONJUGATIONS, LADDER_PERSONS, listConjugatableVerbs, type Person } from '../data/conjugations'
 import { speak, speechSupported, recognitionSupported, startListening, applySpanishPunctuation, describeRecognitionError } from '../utils/speak'
@@ -1573,12 +1573,15 @@ function FillInput({ typed, setTyped, feedback, answer, placeholder, hint, onSub
       {feedback === 'correct' && (
         <p style={{ fontSize: '13px', color: '#4caf50', margin: '0 0 8px' }}>Correct! ✓</p>
       )}
-      {feedback === 'almost' && (
-        <p style={{ fontSize: '13px', color: '#ff9800', margin: '0 0 8px' }}>
-          Almost — typo. Correct spelling: <strong>{answer}</strong>
-          <SpeakButton text={answer} lang={speechLang} />
-        </p>
-      )}
+      {feedback === 'almost' && (() => {
+        const { msg, showAnswer } = almostMessage(typed, answer)
+        return (
+          <p style={{ fontSize: '13px', color: '#ff9800', margin: '0 0 8px' }}>
+            {msg}{showAnswer && <> <strong>{answer}</strong></>}
+            <SpeakButton text={answer} lang={speechLang} />
+          </p>
+        )
+      })()}
       {feedback === 'incorrect' && (
         <>
           <p style={{ fontSize: '13px', color: '#e53935', margin: '0 0 8px' }}>

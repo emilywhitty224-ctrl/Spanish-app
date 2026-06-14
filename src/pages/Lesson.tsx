@@ -8,6 +8,7 @@ import { pickLesson, type LessonBundle } from '../utils/lessonPicker'
 import { chatWithAI, chatInLesson, type AiTurn, type AiReply } from '../utils/aiChat'
 import { speak, speechSupported, recognitionSupported, startListening, applySpanishPunctuation, describeRecognitionError } from '../utils/speak'
 import { weakestFirst } from '../utils/srs'
+import { checkAnswer, almostMessage } from '../utils/answerCheck'
 import { getHint } from '../utils/hints'
 import type { VocabularyItem } from '../types/vocabulary'
 
@@ -97,7 +98,7 @@ export function Lesson() {
   const [drillItems, setDrillItems] = useState<VocabularyItem[]>([])
   const [drillIdx, setDrillIdx] = useState(0)
   const [drillTyped, setDrillTyped] = useState('')
-  const [drillFeedback, setDrillFeedback] = useState<'correct' | 'incorrect' | null>(null)
+  const [drillFeedback, setDrillFeedback] = useState<'correct' | 'almost' | 'incorrect' | null>(null)
   const [drillCorrect, setDrillCorrect] = useState(0)
   const [drillCutShort, setDrillCutShort] = useState(false)
   const [drillListening, setDrillListening] = useState(false)
@@ -273,8 +274,11 @@ export function Lesson() {
       return
     }
     const word = drillItems[drillIdx]
-    const ok = norm(drillTyped) === norm(word.spanish_word)
-    setDrillFeedback(ok ? 'correct' : 'incorrect')
+    const verdict = checkAnswer(drillTyped, word.spanish_word, true)
+    // 'almost' = a one-letter typo or a missing accent — close enough to count as
+    // remembered for scheduling, but we still surface a nudge below.
+    const ok = verdict !== 'wrong'
+    setDrillFeedback(verdict === 'wrong' ? 'incorrect' : verdict)
     if (ok) {
       setDrillCorrect((c) => c + 1)
       reviewWord(word.id, true)
@@ -641,7 +645,7 @@ export function Lesson() {
                 style={{
                   flex: 1, padding: '8px 10px', fontSize: '14px',
                   background: '#1a1a1a',
-                  border: `2px solid ${drillFeedback === 'correct' ? '#4caf50' : drillFeedback === 'incorrect' ? '#e53935' : drillListening ? '#2196f3' : 'var(--color-accent)'}`,
+                  border: `2px solid ${drillFeedback === 'correct' ? '#4caf50' : drillFeedback === 'almost' ? '#ffb300' : drillFeedback === 'incorrect' ? '#e53935' : drillListening ? '#2196f3' : 'var(--color-accent)'}`,
                   borderRadius: '3px', color: '#fff', outline: 'none', boxSizing: 'border-box',
                 }}
               />
@@ -688,6 +692,14 @@ export function Lesson() {
             {drillFeedback === 'correct' && (
               <div style={{ fontSize: '13px', color: '#4caf50' }}>✓ {word.spanish_word}</div>
             )}
+            {drillFeedback === 'almost' && (() => {
+              const { msg, showAnswer } = almostMessage(drillTyped, word.spanish_word)
+              return (
+                <div style={{ fontSize: '13px', color: '#ffb300' }}>
+                  ✓ {msg}{showAnswer && <> <strong>{word.spanish_word}</strong></>}
+                </div>
+              )
+            })()}
             {drillFeedback === 'incorrect' && (
               <div style={{ fontSize: '13px', color: '#e53935' }}>
                 ✗ {drillTyped.trim() && (
