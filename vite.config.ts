@@ -15,8 +15,8 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,ico,png,svg,json}'],
       },
       manifest: {
-        name: 'Spanish Revision App',
-        short_name: 'EspañolApp',
+        name: 'Ladra Conmigo',
+        short_name: 'Ladra',
         description: 'A retro-themed Spanish revision app for A1 beginners',
         theme_color: '#000080',
         background_color: '#008080',
