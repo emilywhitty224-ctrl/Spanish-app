@@ -12,6 +12,7 @@ import { FreeChat } from './pages/FreeChat'
 import { Lesson } from './pages/Lesson'
 import { AddWords } from './pages/AddWords'
 import { Basics, BasicsPractice } from './pages/Basics'
+import { Placement } from './pages/Placement'
 import { Settings } from './pages/Settings'
 import { PreLessonBlitz } from './pages/PreLessonBlitz'
 import { ReconnectBanner } from './components/ReconnectBanner'
@@ -37,6 +38,7 @@ function AppShell() {
       <Routes>
         <Route path="/" element={<SplashScreen />} />
         <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/placement" element={<Placement />} />
         <Route path="/campaign/weekly-sprint" element={<WeeklySprint />} />
         <Route path="/campaign/long-haul" element={<LongHaul />} />
         <Route path="/campaign/chat-with-barny" element={<ChatWithBarny />} />

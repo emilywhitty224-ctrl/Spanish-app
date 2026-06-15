@@ -81,7 +81,7 @@ export function Lesson() {
   const clearMistakesForWord = useStore((s) => s.clearMistakesForWord)
   const skipWarmup = useStore((s) => s.skipWarmup)
   const setSkipWarmup = useStore((s) => s.setSkipWarmup)
-  const srs = useStore((s) => s.srs[s.userProfile])
+  const srs = useStore((s) => s.srs)
   const vocabAll = useVocab()
 
   const [length, setLength] = useState<Length | null>(null)

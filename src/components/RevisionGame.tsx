@@ -5,6 +5,7 @@ import { Barny } from './Barny'
 import type { BarneyPose } from './Barny'
 import { useStore } from '../store/useStore'
 import { pickDueFirst } from '../utils/srs'
+import { isModeUnlocked } from '../utils/difficulty'
 import { checkAnswer, checkAnswerForWord, almostMessage } from '../utils/answerCheck'
 import { getHint } from '../utils/hints'
 import { CONJUGATIONS, LADDER_PERSONS, listConjugatableVerbs, type Person } from '../data/conjugations'
@@ -255,8 +256,14 @@ export interface RevisionGameProps {
 export function RevisionGame({ title, icon, vocab: allVocab, deckLabel, exitTo, onWordResult, autoStart, headerSlot }: RevisionGameProps) {
   const navigate = useNavigate()
   const recordResult = useStore((s) => s.recordResult)
-  const srs = useStore((s) => s.srs?.[s.userProfile] ?? {})
+  const srs = useStore((s) => s.srs ?? {})
   const strictAccents = useStore((s) => s.strictAccents)
+  const modeTier = useStore((s) => s.difficulty.modeTier)
+  // Only the modes unlocked at the learner's tier are offered. Recognition
+  // (tier 1) first, then recall, then production. A campaign that auto-starts a
+  // specific mode bypasses this list, so it still works regardless of tier.
+  const visibleModes = useMemo(() => MODES.filter((m) => isModeUnlocked(m.id, modeTier)), [modeTier])
+  const lockedModeCount = MODES.length - visibleModes.length
 
   const [category, setCategory] = useState<string>('all')
   const categories = useMemo(() => {
@@ -686,7 +693,7 @@ export function RevisionGame({ title, icon, vocab: allVocab, deckLabel, exitTo, 
             )}
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', opacity: vocab.length === 0 ? 0.4 : 1, pointerEvents: vocab.length === 0 ? 'none' : 'auto' }}>
-              {MODES.map((m) => {
+              {visibleModes.map((m) => {
                 const featured = m.id === 'mixed'
                 return (
                   <button
@@ -701,6 +708,11 @@ export function RevisionGame({ title, icon, vocab: allVocab, deckLabel, exitTo, 
                   </button>
                 )
               })}
+              {lockedModeCount > 0 && (
+                <p style={{ fontSize: '11px', color: '#888', textAlign: 'center', margin: '4px 0 0' }}>
+                  🔒 {lockedModeCount} more game{lockedModeCount === 1 ? '' : 's'} unlock as you level up.
+                </p>
+              )}
             </div>
           </div>
         )}

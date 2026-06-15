@@ -63,6 +63,7 @@ export function Basics() {
   const navigate = useNavigate()
   const includeBasics = useStore((s) => s.includeBasicsInSprint)
   const setIncludeBasics = useStore((s) => s.setIncludeBasicsInSprint)
+  const unlockedBand = useStore((s) => s.difficulty.unlockedBand)
   const [activeId, setActiveId] = useState<CategoryId | null>(null)
   const [mode, setMode] = useState<Mode>('browse')
   const [selected, setSelected] = useState<Set<CategoryId>>(new Set())
@@ -79,7 +80,9 @@ export function Basics() {
   }
 
   if (!active) {
-    const allSelected = selected.size === CATEGORIES.length
+    // Topics above the learner's unlocked band are locked until they level up.
+    const unlockedCats = CATEGORIES.filter((c) => c.band <= unlockedBand)
+    const allSelected = selected.size === unlockedCats.length && unlockedCats.length > 0
     // Revise selected topics together, in canonical order, via the full game engine.
     const reviseQuery = CATEGORIES.filter((c) => selected.has(c.id)).map((c) => c.id).join(',')
     return (
@@ -97,7 +100,7 @@ export function Basics() {
             <button
               className="xp-btn"
               style={{ fontSize: '11px', padding: '3px 8px' }}
-              onClick={() => setSelected(allSelected ? new Set() : new Set(CATEGORIES.map((c) => c.id)))}
+              onClick={() => setSelected(allSelected ? new Set() : new Set(unlockedCats.map((c) => c.id)))}
             >
               {allSelected ? 'Clear all' : 'Select all'}
             </button>
@@ -106,19 +109,27 @@ export function Basics() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {CATEGORIES.map((c) => {
               const isOn = selected.has(c.id)
+              const locked = c.band > unlockedBand
               return (
-                <div key={c.id} style={{ display: 'flex', alignItems: 'stretch', gap: '6px' }}>
+                <div key={c.id} style={{ display: 'flex', alignItems: 'stretch', gap: '6px', opacity: locked ? 0.55 : 1 }}>
                   <button
                     className="xp-btn xp-btn-large"
-                    style={{ flex: 1, textAlign: 'left', padding: '12px 16px' }}
+                    style={{ flex: 1, textAlign: 'left', padding: '12px 16px', cursor: locked ? 'not-allowed' : 'pointer' }}
+                    disabled={locked}
+                    title={locked ? 'Unlocks at a higher difficulty' : undefined}
                     onClick={() => { setActiveId(c.id); setMode('browse') }}
                   >
-                    <div style={{ fontSize: '16px', marginBottom: '4px' }}>{c.icon} {c.label}</div>
-                    <div style={{ fontSize: '12px', fontWeight: 'normal', color: '#444' }}>{c.blurb}</div>
+                    <div style={{ fontSize: '16px', marginBottom: '4px' }}>
+                      {locked ? '🔒' : c.icon} {c.label}
+                    </div>
+                    <div style={{ fontSize: '12px', fontWeight: 'normal', color: '#444' }}>
+                      {locked ? 'Unlocks at a higher difficulty — raise it from the Dashboard.' : c.blurb}
+                    </div>
                   </button>
                   <button
                     className={`xp-btn${isOn ? ' xp-btn-primary' : ''}`}
                     style={{ minWidth: '44px', fontSize: '16px' }}
+                    disabled={locked}
                     aria-pressed={isOn}
                     title={isOn ? 'Remove from revision' : 'Add to revision'}
                     onClick={() => toggle(c.id)}

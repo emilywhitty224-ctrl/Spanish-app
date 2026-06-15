@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../store/useStore'
 import { XpWindow } from '../components/XpWindow'
@@ -6,13 +7,25 @@ import { weakestFirst } from '../utils/srs'
 
 const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000
 
+const PLACEMENT_LABEL: Record<string, string> = {
+  scratch: 'Starting from scratch',
+  medium: 'Some Spanish',
+  hard: 'Confident',
+}
+
 export function Dashboard() {
-  const { userProfile, stats } = useStore()
-  const srs = useStore((s) => s.srs[s.userProfile])
+  const myStats = useStore((s) => s.stats)
+  const srs = useStore((s) => s.srs)
+  const placement = useStore((s) => s.difficulty.placement)
   const navigate = useNavigate()
   const vocab = useVocab()
 
-  const myStats = stats[userProfile]
+  // First run: nobody has placed yet → send them to pick a starting point.
+  useEffect(() => {
+    if (placement === null) navigate('/placement', { replace: true })
+  }, [placement, navigate])
+
+
   const accuracy = myStats.totalAnswered > 0
     ? Math.round((myStats.totalCorrect / myStats.totalAnswered) * 100)
     : 0
@@ -40,7 +53,7 @@ export function Dashboard() {
       padding: '8px',
       width: '100%',
     }}>
-      <XpWindow title={`Ladra Conmigo — ${userProfile}'s Dashboard`} icon="🐶" width="min(680px, 100%)" style={{ flex: 1, maxHeight: 'none' }}>
+      <XpWindow title="Ladra Conmigo — Dashboard" icon="🐶" width="min(680px, 100%)" style={{ flex: 1, maxHeight: 'none' }}>
         <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
           <div style={{
             marginBottom: '16px',
@@ -53,11 +66,19 @@ export function Dashboard() {
               color: 'var(--color-accent)',
               margin: 0,
             }}>
-              ¡Hola, {userProfile}!
+              ¡Hola!
             </h2>
             <p style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>
               Choose your learning mode below.
             </p>
+            <button
+              className="xp-btn"
+              style={{ fontSize: '11px', minWidth: 'auto', padding: '3px 9px', marginTop: '6px' }}
+              onClick={() => navigate('/placement')}
+              title="Change your difficulty"
+            >
+              🎚️ Difficulty: {placement ? PLACEMENT_LABEL[placement] : '—'} · Change
+            </button>
           </div>
 
           {/* Stats strip */}

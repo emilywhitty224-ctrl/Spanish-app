@@ -2,9 +2,45 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { VocabularyItem } from '../types/vocabulary'
 
-export type UserProfile = 'Emily' | 'Jocelyn'
 export type Theme = 'WindowsXP' | 'Space' | 'Dinosaurs' | 'Sharks'
 export type AiProvider = 'gemini' | 'anthropic'
+
+// Difficulty band: 1 = starter, 2 = core, 3 = advanced. Mirrors the optional
+// `difficulty` on VocabularyItem.
+export type DifficultyBand = 1 | 2 | 3
+
+// How the learner started out. `null` means they haven't been placed yet, so
+// the app should offer the placement screen (self-select or diagnostic).
+export type Placement = 'scratch' | 'medium' | 'hard'
+
+export interface DifficultySettings {
+  placement: Placement | null
+  unlockedBand: DifficultyBand // highest word band currently in play
+  modeTier: DifficultyBand // highest exercise tier unlocked
+}
+
+// Band/tier each placement starts at. The auto-ramp (later phase) only ever
+// raises these.
+const PLACEMENT_DEFAULTS: Record<Placement, { unlockedBand: DifficultyBand; modeTier: DifficultyBand }> = {
+  scratch: { unlockedBand: 1, modeTier: 1 },
+  medium: { unlockedBand: 2, modeTier: 2 },
+  hard: { unlockedBand: 3, modeTier: 3 },
+}
+
+// Brand-new learner: assume they know nothing (accessible to someone who has
+// never learnt numbers). `placement: null` lets the app prompt for placement.
+const starterDifficulty = (): DifficultySettings => ({
+  placement: null,
+  unlockedBand: 1,
+  modeTier: 1,
+})
+
+// Existing learners migrated from the old two-profile data start at medium so
+// they don't suddenly lose access to words they already knew.
+const migratedDifficulty = (): DifficultySettings => ({
+  placement: 'medium',
+  ...PLACEMENT_DEFAULTS.medium,
+})
 
 export interface ProfileStats {
   totalCorrect: number
@@ -57,20 +93,87 @@ function daysBetween(a: string, b: string): number {
   return Math.round(ms / 86_400_000)
 }
 
-// The shared, account-independent learning data that syncs to Google Drive.
-// Device preferences (theme, voice, selected profile) are intentionally excluded.
+// ── Migration helpers ──────────────────────────────────────────────────────
+// v1 kept stats and srs keyed by user profile ('Emily' | 'Jocelyn'). We now
+// have a single learner per device/account, so collapse any profile maps into
+// one record. Both helpers are tolerant of missing/partial data.
+
+function mergeStats(all: ProfileStats[]): ProfileStats {
+  const merged = emptyStats()
+  for (const s of all) {
+    if (!s) continue
+    merged.totalCorrect += s.totalCorrect ?? 0
+    merged.totalAnswered += s.totalAnswered ?? 0
+    merged.streak = Math.max(merged.streak, s.streak ?? 0)
+    if (s.lastPlayed && (!merged.lastPlayed || s.lastPlayed > merged.lastPlayed)) {
+      merged.lastPlayed = s.lastPlayed
+    }
+    for (const [mode, pct] of Object.entries(s.bestScores ?? {})) {
+      if (pct > (merged.bestScores[mode] ?? 0)) merged.bestScores[mode] = pct
+    }
+  }
+  return merged
+}
+
+function mergeSrs(all: Record<string, SrsEntry>[]): Record<string, SrsEntry> {
+  const merged: Record<string, SrsEntry> = {}
+  for (const profile of all) {
+    if (!profile) continue
+    for (const [wordId, entry] of Object.entries(profile)) {
+      const prev = merged[wordId]
+      // Keep the more-progressed record (higher mastery, then more reviews).
+      if (
+        !prev ||
+        entry.mastery > prev.mastery ||
+        (entry.mastery === prev.mastery && (entry.seen ?? 0) > (prev.seen ?? 0))
+      ) {
+        merged[wordId] = entry
+      }
+    }
+  }
+  return merged
+}
+
+// The shared learning data that syncs to Google Drive. Device preferences
+// (theme, voice) are intentionally excluded.
 export interface SyncSnapshot {
   version: number
   updatedAt: string // ISO timestamp
-  stats: Record<UserProfile, ProfileStats>
+  stats: ProfileStats
   customWords: VocabularyItem[]
-  srs: Record<UserProfile, Record<string, SrsEntry>>
+  srs: Record<string, SrsEntry>
+  difficulty: DifficultySettings
 }
 
-export const SYNC_VERSION = 1
+export const SYNC_VERSION = 2
+
+// Bring any older Drive snapshot up to the current shape. v1 is keyed by
+// profile name; v2 is the flat single-learner shape with difficulty.
+export function migrateSnapshot(raw: any): SyncSnapshot {
+  if (raw?.version >= 2) {
+    return {
+      version: SYNC_VERSION,
+      updatedAt: raw.updatedAt ?? new Date().toISOString(),
+      stats: raw.stats ?? emptyStats(),
+      customWords: raw.customWords ?? [],
+      srs: raw.srs ?? {},
+      difficulty: raw.difficulty ?? migratedDifficulty(),
+    }
+  }
+  // v1 (or unknown): collapse the per-profile maps into one learner.
+  const statsMap = (raw?.stats ?? {}) as Record<string, ProfileStats>
+  const srsMap = (raw?.srs ?? {}) as Record<string, Record<string, SrsEntry>>
+  return {
+    version: SYNC_VERSION,
+    updatedAt: raw?.updatedAt ?? new Date().toISOString(),
+    stats: mergeStats(Object.values(statsMap)),
+    customWords: raw?.customWords ?? [],
+    srs: mergeSrs(Object.values(srsMap)),
+    difficulty: migratedDifficulty(),
+  }
+}
 
 interface AppState {
-  userProfile: UserProfile
   activeTheme: Theme
   voiceURI: string | null
   speechRate: number
@@ -79,10 +182,10 @@ interface AppState {
   skipWarmup: boolean
   strictAccents: boolean
   includeBasicsInSprint: boolean
-  stats: Record<UserProfile, ProfileStats>
+  stats: ProfileStats
   customWords: VocabularyItem[]
-  srs: Record<UserProfile, Record<string, SrsEntry>>
-  setUserProfile: (user: UserProfile) => void
+  srs: Record<string, SrsEntry>
+  difficulty: DifficultySettings
   setActiveTheme: (theme: Theme) => void
   setVoiceURI: (uri: string | null) => void
   setSpeechRate: (rate: number) => void
@@ -91,6 +194,8 @@ interface AppState {
   setSkipWarmup: (skip: boolean) => void
   setStrictAccents: (strict: boolean) => void
   setIncludeBasicsInSprint: (include: boolean) => void
+  setPlacement: (placement: Placement) => void
+  setDifficulty: (partial: Partial<DifficultySettings>) => void
   recordResult: (mode: string, correct: number, total: number) => void
   addCustomWord: (word: VocabularyItem) => void
   removeCustomWord: (id: string) => void
@@ -104,7 +209,6 @@ interface AppState {
 export const useStore = create<AppState>()(
   persist(
     (set, get) => ({
-      userProfile: 'Emily',
       activeTheme: 'WindowsXP',
       voiceURI: null,
       speechRate: 0.9,
@@ -113,11 +217,11 @@ export const useStore = create<AppState>()(
       skipWarmup: false,
       strictAccents: false,
       includeBasicsInSprint: false,
-      stats: { Emily: emptyStats(), Jocelyn: emptyStats() },
+      stats: emptyStats(),
       customWords: [],
-      srs: { Emily: {}, Jocelyn: {} },
+      srs: {},
+      difficulty: starterDifficulty(),
 
-      setUserProfile: (user) => set({ userProfile: user }),
       setActiveTheme: (theme) => set({ activeTheme: theme }),
       setVoiceURI: (uri) => set({ voiceURI: uri }),
       setSpeechRate: (rate) => set({ speechRate: rate }),
@@ -127,10 +231,14 @@ export const useStore = create<AppState>()(
       setStrictAccents: (strict) => set({ strictAccents: strict }),
       setIncludeBasicsInSprint: (include) => set({ includeBasicsInSprint: include }),
 
+      setPlacement: (placement) =>
+        set({ difficulty: { placement, ...PLACEMENT_DEFAULTS[placement] } }),
+      setDifficulty: (partial) =>
+        set((state) => ({ difficulty: { ...state.difficulty, ...partial } })),
+
       recordResult: (mode, correct, total) =>
         set((state) => {
-          const profile = state.userProfile
-          const prev = state.stats[profile] ?? emptyStats()
+          const prev = state.stats ?? emptyStats()
           const today = todayKey()
 
           let streak = prev.streak
@@ -148,14 +256,11 @@ export const useStore = create<AppState>()(
 
           return {
             stats: {
-              ...state.stats,
-              [profile]: {
-                totalCorrect: prev.totalCorrect + correct,
-                totalAnswered: prev.totalAnswered + total,
-                streak,
-                lastPlayed: today,
-                bestScores,
-              },
+              totalCorrect: prev.totalCorrect + correct,
+              totalAnswered: prev.totalAnswered + total,
+              streak,
+              lastPlayed: today,
+              bestScores,
             },
           }
         }),
@@ -175,8 +280,7 @@ export const useStore = create<AppState>()(
 
       reviewWord: (wordId, remembered, mistake) =>
         set((state) => {
-          const profile = state.userProfile
-          const profSrs = state.srs[profile] ?? {}
+          const profSrs = state.srs ?? {}
           const prev = profSrs[wordId]
           const prevMastery = prev?.mastery ?? 0
           const mastery = remembered
@@ -189,17 +293,14 @@ export const useStore = create<AppState>()(
           }
           return {
             srs: {
-              ...state.srs,
-              [profile]: {
-                ...profSrs,
-                [wordId]: {
-                  mastery,
-                  nextReview: addDays(SRS_INTERVALS[mastery]),
-                  seen: (prev?.seen ?? 0) + 1,
-                  correct: (prev?.correct ?? 0) + (remembered ? 1 : 0),
-                  lastSeen: todayKey(),
-                  ...(mistakes && mistakes.length > 0 ? { mistakes } : {}),
-                },
+              ...profSrs,
+              [wordId]: {
+                mastery,
+                nextReview: addDays(SRS_INTERVALS[mastery]),
+                seen: (prev?.seen ?? 0) + 1,
+                correct: (prev?.correct ?? 0) + (remembered ? 1 : 0),
+                lastSeen: todayKey(),
+                ...(mistakes && mistakes.length > 0 ? { mistakes } : {}),
               },
             },
           }
@@ -207,16 +308,12 @@ export const useStore = create<AppState>()(
 
       clearMistakesForWord: (wordId) =>
         set((state) => {
-          const profile = state.userProfile
-          const profSrs = state.srs[profile] ?? {}
+          const profSrs = state.srs ?? {}
           const prev = profSrs[wordId]
           if (!prev || !prev.mistakes || prev.mistakes.length === 0) return {}
           const { mistakes: _drop, ...rest } = prev
           return {
-            srs: {
-              ...state.srs,
-              [profile]: { ...profSrs, [wordId]: rest },
-            },
+            srs: { ...profSrs, [wordId]: rest },
           }
         }),
 
@@ -228,16 +325,36 @@ export const useStore = create<AppState>()(
           stats: s.stats,
           customWords: s.customWords,
           srs: s.srs,
+          difficulty: s.difficulty,
         }
       },
 
-      applySnapshot: (snapshot) =>
+      applySnapshot: (snapshot) => {
+        const migrated = migrateSnapshot(snapshot)
         set({
-          stats: snapshot.stats,
-          customWords: snapshot.customWords,
-          srs: snapshot.srs,
-        }),
+          stats: migrated.stats,
+          customWords: migrated.customWords,
+          srs: migrated.srs,
+          difficulty: migrated.difficulty,
+        })
+      },
     }),
-    { name: 'spanish-app-store' }
+    {
+      name: 'spanish-app-store',
+      version: 2,
+      // Migrate locally-persisted state from the old two-profile shape.
+      migrate: (persisted: any, fromVersion: number) => {
+        if (!persisted) return persisted
+        if (fromVersion < 2) {
+          const statsMap = (persisted.stats ?? {}) as Record<string, ProfileStats>
+          const srsMap = (persisted.srs ?? {}) as Record<string, Record<string, SrsEntry>>
+          persisted.stats = mergeStats(Object.values(statsMap))
+          persisted.srs = mergeSrs(Object.values(srsMap))
+          persisted.difficulty = persisted.difficulty ?? migratedDifficulty()
+          delete persisted.userProfile
+        }
+        return persisted
+      },
+    }
   )
 )

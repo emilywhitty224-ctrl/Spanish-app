@@ -1,11 +1,8 @@
 import { useNavigate } from 'react-router-dom'
-import { useStore } from '../store/useStore'
 import { XpWindow } from '../components/XpWindow'
 import { Barny } from '../components/Barny'
-import type { UserProfile } from '../store/useStore'
 
 export function SplashScreen() {
-  const { userProfile, setUserProfile } = useStore()
   const navigate = useNavigate()
 
   return (
@@ -36,28 +33,11 @@ export function SplashScreen() {
 
           <button
             className="xp-btn xp-btn-large xp-btn-primary"
+            style={{ marginTop: 'auto' }}
             onClick={() => navigate('/dashboard')}
           >
             ▶ Start Learning
           </button>
-
-          <div style={{ marginTop: 'auto', paddingTop: '8px', borderTop: '1px solid var(--color-button-shadow)' }}>
-            <p style={{ fontSize: '12px', marginBottom: '8px', color: '#888', letterSpacing: '0.5px' }}>
-              SELECT USER PROFILE
-            </p>
-            <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
-              {(['Emily', 'Jocelyn'] as UserProfile[]).map((user) => (
-                <button
-                  key={user}
-                  className={`xp-btn${userProfile === user ? ' xp-btn-primary' : ''}`}
-                  style={{ minWidth: '100px', fontWeight: userProfile === user ? 'bold' : 'normal' }}
-                  onClick={() => setUserProfile(user)}
-                >
-                  {userProfile === user ? '● ' : '○ '}{user}
-                </button>
-              ))}
-            </div>
-          </div>
         </div>
       </XpWindow>
 

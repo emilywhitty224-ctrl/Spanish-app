@@ -20,6 +20,9 @@ export interface Category {
   label: string
   icon: string
   blurb: string
+  /** Difficulty band (1 = starter, 2 = core). Gates which topics a learner
+   * sees at their level, and is stamped onto each word for pool filtering. */
+  band: 1 | 2 | 3
   /** Numbers gets an extra "type the number" challenge mode. */
   hasChallenge?: boolean
   entries: Entry[]
@@ -355,6 +358,7 @@ const PLACES: Entry[] = [
 export const CATEGORIES: Category[] = [
   {
     id: 'family',
+    band: 1,
     label: 'Family',
     icon: '👨‍👩‍👧',
     blurb: 'Describe the people in your life — parents, siblings, in-laws.',
@@ -362,6 +366,7 @@ export const CATEGORIES: Category[] = [
   },
   {
     id: 'numbers',
+    band: 1,
     label: 'Numbers (0–1000)',
     icon: '🔢',
     blurb: 'The full counting system, plus the patterns that get you anywhere up to 1000.',
@@ -370,6 +375,7 @@ export const CATEGORIES: Category[] = [
   },
   {
     id: 'food',
+    band: 2,
     label: 'Food & Drink',
     icon: '🍽️',
     blurb: 'Meals, staples, drinks, and a few phrases for ordering.',
@@ -377,6 +383,7 @@ export const CATEGORIES: Category[] = [
   },
   {
     id: 'hobbies',
+    band: 2,
     label: 'Hobbies & Free Time',
     icon: '🎨',
     blurb: 'Sports, music, and the verbs to say what you like doing.',
@@ -384,6 +391,7 @@ export const CATEGORIES: Category[] = [
   },
   {
     id: 'colours',
+    band: 1,
     label: 'Colours',
     icon: '🌈',
     blurb: 'The basic colours, plus light/dark and how they agree with nouns.',
@@ -391,6 +399,7 @@ export const CATEGORIES: Category[] = [
   },
   {
     id: 'greetings',
+    band: 1,
     label: 'Greetings & Phrases',
     icon: '👋',
     blurb: 'Say hello, be polite, and handle a first conversation.',
@@ -398,6 +407,7 @@ export const CATEGORIES: Category[] = [
   },
   {
     id: 'days',
+    band: 2,
     label: 'Days, Months & Time',
     icon: '📆',
     blurb: 'Days, months, seasons and the words for today, tomorrow, yesterday.',
@@ -405,6 +415,7 @@ export const CATEGORIES: Category[] = [
   },
   {
     id: 'weather',
+    band: 2,
     label: 'Weather',
     icon: '⛅',
     blurb: 'Talk about the weather — hace sol, llueve, está nublado.',
@@ -412,6 +423,7 @@ export const CATEGORIES: Category[] = [
   },
   {
     id: 'body',
+    band: 2,
     label: 'The Body',
     icon: '🧍',
     blurb: 'Parts of the body, plus how to say something hurts.',
@@ -419,6 +431,7 @@ export const CATEGORIES: Category[] = [
   },
   {
     id: 'places',
+    band: 2,
     label: 'Places in Town',
     icon: '🏙️',
     blurb: 'Shops, buildings and places — and how to ask where something is.',
@@ -469,9 +482,10 @@ export function categoryToVocab(cat: Category): VocabularyItem[] {
     english_translation: e.english,
     type: guessType(e),
     tags: ['basics', cat.id],
+    difficulty: cat.band,
     mastery_level: 0,
     next_review_date: '',
-    beginner_safe: true,
+    beginner_safe: cat.band === 1,
   }))
 }
 
