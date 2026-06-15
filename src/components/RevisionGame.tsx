@@ -4,6 +4,7 @@ import { XpWindow } from './XpWindow'
 import { Barny } from './Barny'
 import type { BarneyPose } from './Barny'
 import { useStore } from '../store/useStore'
+import type { DifficultyBand } from '../store/useStore'
 import { pickDueFirst } from '../utils/srs'
 import { isModeUnlocked } from '../utils/difficulty'
 import { checkAnswer, checkAnswerForWord, almostMessage } from '../utils/answerCheck'
@@ -59,10 +60,22 @@ function shuffle<T>(arr: T[]): T[] {
   return a
 }
 
-function buildQuestions(vocab: VocabularyItem[], mode: RevisionMode): QuizQuestion[] {
+// `tier` is the learner's mode tier (1 = recognition only, 2 = + recall,
+// 3 = + production). It shapes the "mixed" mode so absolute beginners only ever
+// see flashcards and multiple choice — never "type the Spanish word" — until
+// they level up.
+function buildQuestions(
+  vocab: VocabularyItem[],
+  mode: RevisionMode,
+  tier: DifficultyBand = 3,
+  srs: Record<string, { seen?: number }> = {},
+): QuizQuestion[] {
   if (mode === 'matching' || mode === 'memory' || mode === 'gusta-drill') return []
   if (mode === 'conjugation') return buildConjugationLadder(vocab)
   return shuffle(vocab).map((item): QuizQuestion => {
+    // A word the learner has never answered before. First encounters are always
+    // recognition (see/choose the answer), never "type it from memory".
+    const isNew = (srs[item.id]?.seen ?? 0) === 0
     if (mode === 'flashcard') return { format: 'flashcard', item }
     if (mode === 'fill-in-the-blank') return { format: 'fill-in-the-blank', item }
     if (mode === 'reverse') return { format: 'reverse', item }
@@ -82,18 +95,24 @@ function buildQuestions(vocab: VocabularyItem[], mode: RevisionMode): QuizQuesti
         .map(v => v.english_translation)
       return { format: 'multiple-choice', item, options: shuffle([item.english_translation, ...distractors]) }
     }
-    // mixed
+    // mixed — recognition only at tier 1 and for brand-new words; recall
+    // formats (typing, true/false) join at tier 2+ once a word has been seen.
     const roll = Math.random()
-    if (roll < 0.2) return { format: 'reverse', item }
-    if (roll < 0.4) return { format: 'fill-in-the-blank', item }
-    if (roll < 0.55 && vocab.length >= 2) {
-      const useCorrect = Math.random() < 0.5
-      const shownTranslation = useCorrect
-        ? item.english_translation
-        : shuffle(vocab.filter(v => v.id !== item.id))[0].english_translation
-      return { format: 'true-false', item, shownTranslation, isCorrectPair: useCorrect }
+    if (tier >= 2 && !isNew) {
+      if (roll < 0.2) return { format: 'reverse', item }
+      if (roll < 0.4) return { format: 'fill-in-the-blank', item }
+      if (roll < 0.55 && vocab.length >= 2) {
+        const useCorrect = Math.random() < 0.5
+        const shownTranslation = useCorrect
+          ? item.english_translation
+          : shuffle(vocab.filter(v => v.id !== item.id))[0].english_translation
+        return { format: 'true-false', item, shownTranslation, isCorrectPair: useCorrect }
+      }
     }
-    if (vocab.length < 4 || roll < 0.75) return { format: 'flashcard', item }
+    // Beginners (tier 1) and first encounters lean on flashcards — see the
+    // answer — with a little multiple choice to check recognition.
+    const flashcardCutoff = isNew ? 0.7 : tier >= 2 ? 0.75 : 0.6
+    if (vocab.length < 4 || roll < flashcardCutoff) return { format: 'flashcard', item }
     const distractors = shuffle(vocab.filter(v => v.id !== item.id))
       .slice(0, 3)
       .map(v => v.english_translation)
@@ -281,7 +300,7 @@ export function RevisionGame({ title, icon, vocab: allVocab, deckLabel, exitTo, 
   const [mode, setMode] = useState<RevisionMode>(autoStart ?? 'mixed')
 
   // Sequential quiz state
-  const initialQuestions = useMemo(() => buildQuestions(pickDueFirst(vocab, srs, SEQUENTIAL_CAP), mode), [])
+  const initialQuestions = useMemo(() => buildQuestions(pickDueFirst(vocab, srs, SEQUENTIAL_CAP), mode, modeTier, srs), [])
   const [questions, setQuestions] = useState<QuizQuestion[]>(initialQuestions)
   const [index, setIndex] = useState(0)
   const [results, setResults] = useState<('correct' | 'incorrect')[]>([])
@@ -502,7 +521,7 @@ export function RevisionGame({ title, icon, vocab: allVocab, deckLabel, exitTo, 
       setupSentenceQuestion(round[0], selected)
       setPhase(selected === 'cloze-sentence' ? 'cloze' : selected === 'dictation' ? 'dictation' : 'wordorder')
     } else {
-      setQuestions(buildQuestions(pickDueFirst(vocab, srs, SEQUENTIAL_CAP), selected))
+      setQuestions(buildQuestions(pickDueFirst(vocab, srs, SEQUENTIAL_CAP), selected, modeTier, srs))
       setPhase('quiz')
     }
   }
