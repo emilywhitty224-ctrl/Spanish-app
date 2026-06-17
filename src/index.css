@@ -25,6 +25,15 @@ body {
 }
 
 @media (max-width: 767px) {
+  /* Mobile gets a uniform zoom, mirroring the desktop branch below, so
+     everything (text, buttons, images, padding) scales up together —
+     not just the few font sizes overridden in this block. */
+  #root {
+    width: calc(100vw / 1.15);
+    height: calc(100dvh / 1.15);
+    zoom: 1.15;
+  }
+
   body {
     font-size: 14px;
   }
