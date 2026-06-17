@@ -150,6 +150,23 @@ export function Basics() {
             🎮 Revise selected ({selected.size})
           </button>
 
+          {/* The Keyboard Lab isn't a tickable revise topic — it's a standalone
+              tool, so it sits below the divider rather than in the list above. */}
+          <button
+            className="xp-btn xp-btn-large"
+            style={{
+              width: '100%', textAlign: 'left', padding: '12px 16px',
+              marginTop: '12px', paddingTop: '12px',
+              borderTop: '1px solid var(--color-button-shadow)',
+            }}
+            onClick={() => navigate('/keyboard-lab')}
+          >
+            <div style={{ fontSize: '16px', marginBottom: '4px' }}>⌨️ Keyboard Lab</div>
+            <div style={{ fontSize: '12px', fontWeight: 'normal', color: '#444' }}>
+              Learn the Spanish layout — accents, ñ, ¿/¡ vs your UK keyboard.
+            </div>
+          </button>
+
           <label
             style={{
               display: 'flex', alignItems: 'center', gap: '8px',
