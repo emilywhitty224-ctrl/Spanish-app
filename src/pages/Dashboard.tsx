@@ -54,7 +54,7 @@ export function Dashboard() {
       padding: '8px',
       width: '100%',
     }}>
-      <XpWindow title="Ladra Conmigo — Dashboard" icon="🐶" width="min(680px, 100%)" style={{ flex: 1, maxHeight: 'none' }}>
+      <XpWindow title="Ladra Conmigo — Dashboard" icon="🐶" width="min(680px, 100%)" onClose={() => navigate('/')} style={{ flex: 1, maxHeight: 'none' }}>
         <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
           <div style={{
             marginBottom: '16px',
