@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { XpWindow } from '../components/XpWindow'
 import { RevisionGame } from '../components/RevisionGame'
 import { useStore } from '../store/useStore'
-import { speak, speechSupported, recognitionSupported, startListening, describeRecognitionError } from '../utils/speak'
+import { speakCycle, speechSupported, recognitionSupported, startListening, describeRecognitionError } from '../utils/speak'
 import { checkAnswer, almostMessage } from '../utils/answerCheck'
 import {
   CATEGORIES,
@@ -297,7 +297,7 @@ function BrowseList({ entries }: { entries: Entry[] }) {
             <button
               className="xp-btn"
               style={{ fontSize: '11px', padding: '4px 8px' }}
-              onClick={() => speak(e.spanish.split('/')[0].trim())}
+              onClick={() => speakCycle(e.spanish.split('/')[0].trim())}
               title="Hear it"
             >🔊</button>
           )}
@@ -447,7 +447,7 @@ function NumberChallenge() {
         <button
           className="xp-btn"
           style={{ fontSize: '11px', alignSelf: 'flex-start' }}
-          onClick={() => speak(answer)}
+          onClick={() => speakCycle(answer)}
         >🔊 Hear it</button>
       )}
 

@@ -6,7 +6,7 @@ import { useStore } from '../store/useStore'
 import { useVocab } from '../data/useVocab'
 import { pickLesson, type LessonBundle } from '../utils/lessonPicker'
 import { chatWithAI, chatInLesson, type AiTurn, type AiReply } from '../utils/aiChat'
-import { speak, speechSupported, recognitionSupported, startListening, applySpanishPunctuation, describeRecognitionError } from '../utils/speak'
+import { speak, speakCycle, speechSupported, recognitionSupported, startListening, applySpanishPunctuation, describeRecognitionError } from '../utils/speak'
 import { weakestFirst } from '../utils/srs'
 import { checkAnswer, almostMessage } from '../utils/answerCheck'
 import { getHint } from '../utils/hints'
@@ -565,7 +565,7 @@ export function Lesson() {
             </div>
             <div style={{ display: 'flex', gap: '6px' }}>
               {speechSupported && (
-                <button className="xp-btn" style={{ fontSize: '11px' }} onClick={() => speak(warmupWord.spanish_word)}>🔊 Hear it</button>
+                <button className="xp-btn" style={{ fontSize: '11px' }} onClick={() => speakCycle(warmupWord.spanish_word)}>🔊 Hear it</button>
               )}
               <button
                 className="xp-btn xp-btn-primary"
@@ -604,7 +604,7 @@ export function Lesson() {
                       <button
                         className="xp-btn"
                         style={{ fontSize: '10px', padding: '0 6px', marginLeft: '6px' }}
-                        onClick={() => { setWordIdx(-1); setTimeout(() => speak(chatTurns[0].barny.spanish, setWordIdx), 50) }}
+                        onClick={() => { setWordIdx(-1); setTimeout(() => speakCycle(chatTurns[0].barny.spanish, setWordIdx), 50) }}
                       >🔊</button>
                     )}
                   </div>
@@ -722,7 +722,7 @@ export function Lesson() {
               <button
                 className="xp-btn"
                 style={{ fontSize: '11px', alignSelf: 'flex-start' }}
-                onClick={() => speak(word.spanish_word)}
+                onClick={() => speakCycle(word.spanish_word)}
               >🔊 Hear it</button>
             )}
           </div>
@@ -753,7 +753,7 @@ export function Lesson() {
                       ))}</span>
                       {speechSupported && (
                         <button className="xp-btn" style={{ fontSize: '10px', padding: '0 6px', marginLeft: '6px' }}
-                          onClick={() => { setWordIdx(-1); setTimeout(() => speak(t.barny.spanish, setWordIdx), 50) }}>🔊</button>
+                          onClick={() => { setWordIdx(-1); setTimeout(() => speakCycle(t.barny.spanish, setWordIdx), 50) }}>🔊</button>
                       )}
                     </div>
                     <div style={{ color: '#777', fontSize: '14px', marginLeft: '14px' }}>

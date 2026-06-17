@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { XpWindow } from '../components/XpWindow'
 import { Barny, RotatingBarnyIcon } from '../components/Barny'
 import { CONVERSATIONS, CATEGORIES, findConversation, type Reply, type ConversationCategory } from '../data/conversations'
-import { speak, speechSupported } from '../utils/speak'
+import { speak, speakCycle, speechSupported } from '../utils/speak'
 import { useStore } from '../store/useStore'
 
 interface Turn {
@@ -272,7 +272,7 @@ export function ChatWithBarny() {
                   <button
                     className="xp-btn"
                     style={{ fontSize: '11px', padding: '3px 10px' }}
-                    onClick={() => { setWordIdx(-1); setTimeout(() => speak(node.barny, setWordIdx), 50) }}
+                    onClick={() => { setWordIdx(-1); setTimeout(() => speakCycle(node.barny, setWordIdx), 50) }}
                   >
                     🔊 Hear it again
                   </button>

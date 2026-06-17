@@ -123,10 +123,15 @@ function pickVoice(): SpeechSynthesisVoice | null {
 
 let currentSession = 0
 
-export function speak(text: string, onBoundary?: (wordIdx: number) => void, lang = 'es-ES'): void {
+export function speak(
+  text: string,
+  onBoundary?: (wordIdx: number) => void,
+  lang = 'es-ES',
+  rateOverride?: number,
+): void {
   if (!speechSupported) return
   if (getVoices().length === 0) {
-    const unsub = onVoicesReady(() => { unsub(); speak(text, onBoundary, lang) })
+    const unsub = onVoicesReady(() => { unsub(); speak(text, onBoundary, lang, rateOverride) })
     return
   }
   window.speechSynthesis.cancel()
@@ -139,7 +144,7 @@ export function speak(text: string, onBoundary?: (wordIdx: number) => void, lang
   } else {
     utterance.lang = lang
   }
-  const rate = useStore.getState().speechRate
+  const rate = rateOverride ?? useStore.getState().speechRate
   utterance.rate = rate
   utterance.pitch = 1
 
@@ -180,4 +185,27 @@ export function speak(text: string, onBoundary?: (wordIdx: number) => void, lang
   }
 
   window.speechSynthesis.speak(utterance)
+}
+
+// Speed multipliers (relative to the user's normal speechRate) applied to
+// successive presses of a play button on the *same* text: normal → slower →
+// slowest, then wrapping back to normal. Switching to different text resets.
+const CYCLE_RATES = [1, 0.7, 0.5]
+let cycleText: string | null = null
+let cycleStep = 0
+
+/**
+ * Like `speak`, but for user-triggered play buttons: repeatedly pressing on the
+ * same text slows it down step by step (normal → slow → slower → back to
+ * normal). Playing different text starts again at normal speed.
+ */
+export function speakCycle(text: string, onBoundary?: (wordIdx: number) => void, lang = 'es-ES'): void {
+  if (text === cycleText) {
+    cycleStep = (cycleStep + 1) % CYCLE_RATES.length
+  } else {
+    cycleText = text
+    cycleStep = 0
+  }
+  const base = useStore.getState().speechRate
+  speak(text, onBoundary, lang, base * CYCLE_RATES[cycleStep])
 }

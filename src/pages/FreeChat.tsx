@@ -4,7 +4,7 @@ import { XpWindow } from '../components/XpWindow'
 import { Barny, RotatingBarnyIcon } from '../components/Barny'
 import { useStore } from '../store/useStore'
 import { chatWithAI, suggestReplies, type AiTurn, type AiReply, type SuggestedReply } from '../utils/aiChat'
-import { speak, speechSupported, recognitionSupported, startListening, applySpanishPunctuation, describeRecognitionError } from '../utils/speak'
+import { speak, speakCycle, speechSupported, recognitionSupported, startListening, applySpanishPunctuation, describeRecognitionError } from '../utils/speak'
 
 interface Scenario {
   id: string
@@ -227,7 +227,7 @@ export function FreeChat() {
                         <button
                           className="xp-btn"
                           style={{ fontSize: '10px', padding: '0 6px', marginLeft: '6px' }}
-                          onClick={() => { setWordIdx(-1); setTimeout(() => speak(t.barny.spanish, setWordIdx), 50) }}
+                          onClick={() => { setWordIdx(-1); setTimeout(() => speakCycle(t.barny.spanish, setWordIdx), 50) }}
                         >🔊</button>
                       )}
                       <button

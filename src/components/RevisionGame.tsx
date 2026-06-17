@@ -10,7 +10,7 @@ import { isModeUnlocked } from '../utils/difficulty'
 import { checkAnswer, checkAnswerForWord, almostMessage } from '../utils/answerCheck'
 import { getHint } from '../utils/hints'
 import { CONJUGATIONS, LADDER_PERSONS, listConjugatableVerbs, type Person } from '../data/conjugations'
-import { speak, speechSupported, recognitionSupported, startListening, applySpanishPunctuation, describeRecognitionError } from '../utils/speak'
+import { speak, speakCycle, speechSupported, recognitionSupported, startListening, applySpanishPunctuation, describeRecognitionError } from '../utils/speak'
 import { SENTENCES, pickSentences, tokenize, type Sentence } from '../data/sentences'
 import type { VocabularyItem } from '../types/vocabulary'
 
@@ -197,7 +197,7 @@ function SpeakButton({ text, lang }: { text: string; lang?: string }) {
       aria-label="Hear pronunciation"
       title="Hear it in Spanish"
       style={{ minWidth: 'auto', padding: '4px 8px', marginLeft: '8px', verticalAlign: 'middle' }}
-      onClick={(e) => { e.stopPropagation(); speak(text, undefined, lang) }}
+      onClick={(e) => { e.stopPropagation(); speakCycle(text, undefined, lang) }}
     >
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent)" strokeWidth={2} strokeLinejoin="round" style={{ display: 'block' }}>
         <path d="M4 9h4l5-4v14l-5-4H4z" fill="var(--color-accent)" />
@@ -989,7 +989,7 @@ export function RevisionGame({ title, icon, vocab: allVocab, deckLabel, exitTo, 
                 <p style={{ fontSize: '11px', color: '#888', marginBottom: '12px' }}>Listen and type what you hear (Spanish):</p>
                 <button
                   className="xp-btn xp-btn-primary"
-                  onClick={() => speak(q.spanish)}
+                  onClick={() => speakCycle(q.spanish)}
                   disabled={!speechSupported}
                   style={{ fontSize: '14px', padding: '8px 16px', marginBottom: '14px' }}
                 >
@@ -1129,7 +1129,7 @@ export function RevisionGame({ title, icon, vocab: allVocab, deckLabel, exitTo, 
                     <button
                       className="xp-btn"
                       style={{ fontSize: '11px', padding: '3px 9px' }}
-                      onClick={() => speak(q.spanish)}
+                      onClick={() => speakCycle(q.spanish)}
                       disabled={showFeedback}
                     >
                       🔊 Listen
@@ -1279,7 +1279,7 @@ export function RevisionGame({ title, icon, vocab: allVocab, deckLabel, exitTo, 
                       <button
                         className="xp-btn"
                         style={{ minWidth: 'auto', padding: '6px 12px' }}
-                        onClick={() => speak(current.item.spanish_word)}
+                        onClick={() => speakCycle(current.item.spanish_word)}
                       >
                         Replay
                       </button>
