@@ -3,17 +3,55 @@ import { useNavigate } from 'react-router-dom'
 import { XpWindow } from '../components/XpWindow'
 import { useStore, type SrsEntry } from '../store/useStore'
 
-// Keys that change when you switch macOS to the Spanish (Spain ISO) input
-// source. Everything else stays where your UK cover/muscle-memory expects.
-const DIFF_KEYS = new Set(['ñ', '´', 'ç', '¡'])
+// Spanish (Spain) ISO layout. `base` is the unshifted face; `shift`/`alt`
+// (AltGr) are the secondary faces printed on the same key. `diff: true` marks
+// the keys you actually reach for to type Spanish (accents, ñ, ç, ¿/¡ and the
+// @/" on the 2 key) — those get highlighted in the diagram.
+interface KeyDef {
+  base: string
+  shift?: string
+  alt?: string
+  diff?: boolean
+}
 
-// Spanish (Spain) ISO layout, base (unshifted) faces. Rows mirror a physical
-// keyboard so the diagram reads like the cover sitting on the user's Mac.
-const ROWS: string[][] = [
-  ['º', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', "'", '¡'],
-  ['q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p', '`', '+'],
-  ['a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', 'ñ', '´', 'ç'],
-  ['<', 'z', 'x', 'c', 'v', 'b', 'n', 'm', ',', '.', '-'],
+const ROWS: KeyDef[][] = [
+  [
+    { base: 'º', shift: 'ª', alt: '\\' },
+    { base: '1', shift: '!', alt: '|' },
+    { base: '2', shift: '"', alt: '@', diff: true },
+    { base: '3', shift: '·', alt: '#' },
+    { base: '4', shift: '$', alt: '~' },
+    { base: '5', shift: '%' },
+    { base: '6', shift: '&', alt: '¬' },
+    { base: '7', shift: '/' },
+    { base: '8', shift: '(' },
+    { base: '9', shift: ')' },
+    { base: '0', shift: '=' },
+    { base: "'", shift: '?' },
+    { base: '¡', shift: '¿', diff: true },
+  ],
+  [
+    { base: 'q' }, { base: 'w' }, { base: 'e', alt: '€' }, { base: 'r' },
+    { base: 't' }, { base: 'y' }, { base: 'u' }, { base: 'i' },
+    { base: 'o' }, { base: 'p' },
+    { base: '`', shift: '^', alt: '[' },
+    { base: '+', shift: '*', alt: ']' },
+  ],
+  [
+    { base: 'a' }, { base: 's' }, { base: 'd' }, { base: 'f' },
+    { base: 'g' }, { base: 'h' }, { base: 'j' }, { base: 'k' }, { base: 'l' },
+    { base: 'ñ', diff: true },
+    { base: '´', shift: '¨', alt: '{', diff: true },
+    { base: 'ç', shift: 'Ç', alt: '}', diff: true },
+  ],
+  [
+    { base: '<', shift: '>' },
+    { base: 'z' }, { base: 'x' }, { base: 'c' }, { base: 'v' },
+    { base: 'b' }, { base: 'n' }, { base: 'm' },
+    { base: ',', shift: ';' },
+    { base: '.', shift: ':' },
+    { base: '-', shift: '_' },
+  ],
 ]
 
 interface CheatRow {
@@ -27,6 +65,7 @@ const CHEAT_SHEET: CheatRow[] = [
   { want: 'ü', how: 'Shift + ´ (gives ¨), then u' },
   { want: '¿', how: 'Shift + the ¡¿ key (top-right of number row)' },
   { want: '¡', how: 'The ¡¿ key (top-right of number row)' },
+  { want: 'ç', how: 'The Ç key (right of the ´ dead key)' },
   { want: '@', how: 'AltGr + 2' },
   { want: '"', how: 'Shift + 2' },
 ]
@@ -40,6 +79,7 @@ const KEYSTROKE: Record<string, string> = {
   ú: 'press ´ then u',
   ü: 'Shift + ´ (¨) then u',
   ñ: 'the Ñ key',
+  ç: 'the Ç key',
   '¿': 'Shift + ¡¿',
   '¡': 'the ¡¿ key',
 }
@@ -134,10 +174,12 @@ export function KeyboardLab() {
             }}>
               ⌨️ Spanish (Spain) keyboard
             </h2>
-            <p style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>
+            <p style={{ fontSize: '12px', color: '#aaa', marginTop: '4px' }}>
               Switch macOS to the <strong>Spanish (Spain) ISO</strong> input source, and your
-              UK keys produce the characters on your cover. Highlighted keys below are the
-              ones that move or change.
+              UK keys produce the characters on your cover. The <strong>highlighted</strong> keys
+              below are the ones you reach for to type Spanish — accents, ñ, ç and ¿/¡. Each key
+              shows its <strong>Shift</strong> (top-right) and <strong>AltGr</strong> (bottom-right)
+              faces too.
             </p>
           </div>
 
@@ -154,14 +196,14 @@ export function KeyboardLab() {
               {ROWS.map((row, i) => (
                 <div key={i} style={{ display: 'flex', gap: '5px', justifyContent: 'center' }}>
                   {row.map((key) => (
-                    <Key key={key} label={key} highlight={DIFF_KEYS.has(key)} />
+                    <Key key={key.base} def={key} />
                   ))}
                 </div>
               ))}
             </div>
             <div style={{ display: 'flex', gap: '14px', marginTop: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
-              <Legend swatch="var(--color-accent)" text="Different from UK" />
-              <Legend swatch="transparent" text="Same as UK" />
+              <Legend swatch="var(--color-accent)" text="Spanish accents & punctuation" />
+              <Legend swatch="transparent" text="Same position as UK" />
             </div>
           </div>
 
@@ -193,7 +235,7 @@ export function KeyboardLab() {
                   }}>
                     {row.want}
                   </span>
-                  <span style={{ color: '#444' }}>{row.how}</span>
+                  <span style={{ color: '#bbb' }}>{row.how}</span>
                 </div>
               ))}
             </div>
@@ -309,7 +351,7 @@ function DrillPanel() {
         </div>
       </div>
 
-      <p style={{ fontSize: '12px', color: '#666', marginTop: 0, marginBottom: '10px' }}>
+      <p style={{ fontSize: '12px', color: '#aaa', marginTop: 0, marginBottom: '10px' }}>
         Type this with your Spanish input source on · card {idx + 1} of {order.length}
         {bestKbd !== undefined && ` · best ${bestKbd}%`}
       </p>
@@ -394,7 +436,7 @@ function DrillPanel() {
             <span key={h} style={{
               fontSize: '11px',
               fontFamily: 'monospace',
-              color: '#444',
+              color: '#bbb',
               border: '1px solid var(--color-button-shadow)',
               borderRadius: '4px',
               padding: '2px 7px',
@@ -432,26 +474,47 @@ function DrillPanel() {
   )
 }
 
-function Key({ label, highlight }: { label: string; highlight: boolean }) {
+function Key({ def }: { def: KeyDef }) {
+  const highlight = !!def.diff
   return (
     <div style={{
-      minWidth: '34px',
-      height: '34px',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '0 4px',
+      position: 'relative',
+      minWidth: '38px',
+      height: '38px',
+      boxSizing: 'border-box',
+      padding: '2px 4px',
       borderRadius: '4px',
-      fontSize: '13px',
       fontFamily: 'monospace',
       border: highlight
         ? '2px solid var(--color-accent)'
         : '1px solid var(--color-button-shadow)',
       background: highlight ? 'rgba(255,255,255,0.10)' : 'rgba(255,255,255,0.02)',
-      color: highlight ? 'var(--color-accent)' : '#bbb',
-      fontWeight: highlight ? 'bold' : 'normal',
     }}>
-      {label}
+      {/* Base face, centred. */}
+      <div style={{
+        position: 'absolute',
+        inset: 0,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontSize: '14px',
+        color: highlight ? 'var(--color-accent)' : '#ddd',
+        fontWeight: highlight ? 'bold' : 'normal',
+      }}>
+        {def.base}
+      </div>
+      {/* Shift face, top-right. */}
+      {def.shift && (
+        <span style={{ position: 'absolute', top: '1px', right: '3px', fontSize: '8px', color: '#888' }}>
+          {def.shift}
+        </span>
+      )}
+      {/* AltGr face, bottom-right. */}
+      {def.alt && (
+        <span style={{ position: 'absolute', bottom: '1px', right: '3px', fontSize: '8px', color: '#777' }}>
+          {def.alt}
+        </span>
+      )}
     </div>
   )
 }
