@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { XpWindow } from '../components/XpWindow'
+import { Barny, type BarneyPose } from '../components/Barny'
 import { useStore, type SrsEntry } from '../store/useStore'
 
 // Spanish (Spain) ISO layout. `base` is the unshifted face; `shift`/`alt`
@@ -84,24 +85,50 @@ const KEYSTROKE: Record<string, string> = {
   '¡': 'the ¡¿ key',
 }
 
-// ~15 targets focused on accents, ñ, ü and ¿/¡.
-const DECK = [
-  'mañana',
-  '¿cómo estás?',
-  'corazón',
-  'pingüino',
-  'español',
-  'niño',
-  '¡hola!',
-  'sí',
-  '¿qué?',
-  'cumpleaños',
-  'bilingüe',
-  '¿dónde?',
-  'lección',
-  'señor',
-  '¡adiós!',
+// ~15 targets focused on accents, ñ, ü and ¿/¡, each with its English meaning.
+const DECK: { es: string; en: string }[] = [
+  { es: 'mañana', en: 'tomorrow / morning' },
+  { es: '¿cómo estás?', en: 'how are you?' },
+  { es: 'corazón', en: 'heart' },
+  { es: 'pingüino', en: 'penguin' },
+  { es: 'español', en: 'Spanish' },
+  { es: 'niño', en: 'boy / child' },
+  { es: '¡hola!', en: 'hello!' },
+  { es: 'sí', en: 'yes' },
+  { es: '¿qué?', en: 'what?' },
+  { es: 'cumpleaños', en: 'birthday' },
+  { es: 'bilingüe', en: 'bilingual' },
+  { es: '¿dónde?', en: 'where?' },
+  { es: 'lección', en: 'lesson' },
+  { es: 'señor', en: 'sir / mister' },
+  { es: '¡adiós!', en: 'goodbye!' },
 ]
+
+// Just the Spanish strings (deck order helpers + SRS ids work on these), and a
+// quick es → en lookup for showing the meaning under each drill target.
+const WORDS = DECK.map((d) => d.es)
+const TRANSLATION: Record<string, string> = Object.fromEntries(
+  DECK.map((d) => [d.es, d.en]),
+)
+
+// Barny's detention lines, Bart-Simpson-chalkboard style: absurd first-person
+// promises a misbehaving dog gets made to write — each one still packs in a few
+// accents/ñ/¿¡ so you drill the special keys.
+const LINES: { es: string; en: string }[] = [
+  { es: 'No me comeré los zapatos otra vez.', en: 'I will not eat the shoes again.' },
+  { es: 'No ladraré al cartero. Es mi amigo.', en: 'I will not bark at the postman. He is my friend.' },
+  { es: 'El sofá no es mi baño.', en: 'The sofa is not my bathroom.' },
+  { es: 'No robaré jamón de la mesa.', en: 'I will not steal ham from the table.' },
+  { es: 'Perseguir mi cola no me hará más listo.', en: "Chasing my tail won't make me smarter." },
+  { es: 'Prometo portarme bien... mañana.', en: 'I promise to behave... tomorrow.' },
+  { es: 'Los calcetines no son comida, según Barny.', en: 'Socks are not food, according to Barny.' },
+  { es: '¿Quién rompió el jarrón? No fui yo.', en: "Who broke the vase? It wasn't me." },
+  { es: 'No haré zoomies a las tres de la mañana.', en: 'I will not do zoomies at three in the morning.' },
+  { es: 'El gato del vecino algún día será mi amigo.', en: 'The cat next door will be my friend someday.' },
+]
+
+// How many times you must write the line correctly to finish.
+const LINES_TARGET = 5
 
 // Distinct special chars in a target, in order of first appearance.
 function hintsFor(target: string): string[] {
@@ -135,7 +162,7 @@ function orderDeck(srs: Record<string, SrsEntry> | undefined): string[] {
   const due: string[] = []
   const fresh: string[] = []
   const upcoming: string[] = []
-  for (const target of DECK) {
+  for (const target of WORDS) {
     const e = safe[kbdId(target)]
     if (!e) fresh.push(target)
     else if (e.nextReview <= t) due.push(target)
@@ -245,6 +272,8 @@ export function KeyboardLab() {
           </div>
 
           <DrillPanel />
+
+          <LinesGame />
 
           <div style={{ marginTop: 'auto', paddingTop: '12px' }}>
             <button
@@ -392,6 +421,19 @@ function DrillPanel() {
         )}
       </div>
 
+      {/* English meaning of the target word. */}
+      {TRANSLATION[target] && (
+        <p style={{
+          fontSize: '12px',
+          color: '#9bb3c9',
+          fontStyle: 'italic',
+          textAlign: 'center',
+          margin: '0 0 10px',
+        }}>
+          “{TRANSLATION[target]}”
+        </p>
+      )}
+
       <input
         ref={inputRef}
         value={input}
@@ -469,6 +511,182 @@ function DrillPanel() {
           Finish ✓
         </button>
       </div>
+    </div>
+  )
+}
+
+// Barny's detention bit, but friendly: he holds up a line and you write it out
+// LINES_TARGET times — accents and all. Only a perfect, full-match line counts,
+// so it drills the special keys under light pressure. Purely for fun: it keeps
+// its own count and doesn't touch the SRS or stats.
+function LinesGame() {
+  const pick = () => LINES[Math.floor(Math.random() * LINES.length)]
+  const [line, setLine] = useState(pick)
+  const [input, setInput] = useState('')
+  const [done, setDone] = useState(0)
+  const [wrong, setWrong] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  const hints = useMemo(() => hintsFor(line.es), [line])
+  const finished = done >= LINES_TARGET
+  const matches = input === line.es
+
+  function submit() {
+    if (finished) return
+    if (matches) {
+      setDone((d) => d + 1)
+      setInput('')
+      setWrong(false)
+      inputRef.current?.focus()
+    } else {
+      setWrong(true)
+    }
+  }
+
+  function newLine() {
+    setLine(pick())
+    setInput('')
+    setDone(0)
+    setWrong(false)
+    inputRef.current?.focus()
+  }
+
+  const pose: BarneyPose = finished ? 'celebrate' : wrong ? 'sad' : 'neutral'
+  const message = finished
+    ? `¡Muy bien! ${LINES_TARGET} líneas perfectas. ¡Buen chico (y buena tú)! 🦴`
+    : wrong
+      ? 'Casi — that one had a typo. Mind the accents and try again! 🐾'
+      : `Write this line ${LINES_TARGET} times — accents and all. ¡A escribir!`
+
+  return (
+    <div style={{
+      border: '1px solid var(--color-button-shadow)',
+      borderRadius: '6px',
+      padding: '12px',
+      background: 'rgba(255,255,255,0.03)',
+      marginTop: '16px',
+    }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '10px' }}>
+        <div style={{ fontSize: '11px', color: '#888', letterSpacing: '0.5px' }}>
+          WRITE LINES WITH BARNY
+        </div>
+        <div style={{ fontSize: '12px', color: 'var(--color-accent)', fontWeight: 'bold' }}>
+          {done} / {LINES_TARGET} lines
+        </div>
+      </div>
+
+      <Barny size="small" pose={pose} message={message} />
+
+      {/* The line to copy + its meaning. */}
+      <div style={{
+        fontFamily: 'monospace',
+        fontSize: '16px',
+        textAlign: 'center',
+        padding: '10px',
+        margin: '10px 0 4px',
+        borderRadius: '4px',
+        background: 'rgba(0,0,0,0.15)',
+      }}>
+        {line.es}
+      </div>
+      <p style={{ fontSize: '12px', color: '#9bb3c9', fontStyle: 'italic', textAlign: 'center', margin: '0 0 10px' }}>
+        “{line.en}”
+      </p>
+
+      {/* Chalkboard: each completed line fills a row. */}
+      <div style={{
+        border: '2px solid #2e2e2e',
+        borderRadius: '4px',
+        background: '#1d3026',
+        padding: '8px 10px',
+        marginBottom: '10px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '4px',
+      }}>
+        {Array.from({ length: LINES_TARGET }).map((_, i) => (
+          <div key={i} style={{
+            fontFamily: '"Comic Sans MS", cursive, monospace',
+            fontSize: '13px',
+            color: i < done ? '#eaf6ee' : 'transparent',
+            borderBottom: '1px solid rgba(255,255,255,0.10)',
+            minHeight: '18px',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}>
+            {i < done ? line.es : '·'}
+          </div>
+        ))}
+      </div>
+
+      {finished ? (
+        <button className="xp-btn" style={{ width: '100%' }} onClick={newLine}>
+          New line →
+        </button>
+      ) : (
+        <>
+          <input
+            ref={inputRef}
+            value={input}
+            spellCheck={false}
+            autoCapitalize="off"
+            autoCorrect="off"
+            placeholder="Write the line here…"
+            onChange={(e) => {
+              setInput(e.target.value)
+              if (wrong) setWrong(false)
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') submit()
+            }}
+            style={{
+              width: '100%',
+              boxSizing: 'border-box',
+              fontFamily: 'monospace',
+              fontSize: '15px',
+              padding: '8px 10px',
+              borderRadius: '4px',
+              border: `2px solid ${wrong ? '#e53935' : matches ? '#4caf50' : 'var(--color-button-shadow)'}`,
+              background: 'rgba(255,255,255,0.06)',
+              color: '#eee',
+            }}
+          />
+
+          {hints.length > 0 && (
+            <div style={{ marginTop: '8px', display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+              {hints.map((h) => (
+                <span key={h} style={{
+                  fontSize: '11px',
+                  fontFamily: 'monospace',
+                  color: '#bbb',
+                  border: '1px solid var(--color-button-shadow)',
+                  borderRadius: '4px',
+                  padding: '2px 7px',
+                  background: 'rgba(255,255,255,0.04)',
+                }}>
+                  {h}
+                </span>
+              ))}
+            </div>
+          )}
+
+          <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+            <button
+              className="xp-btn"
+              style={{ flex: 1 }}
+              disabled={!matches}
+              onClick={submit}
+              title="Add this line to the board"
+            >
+              Add line ✓
+            </button>
+            <button className="xp-btn" style={{ flex: 1 }} onClick={newLine}>
+              Different line ↻
+            </button>
+          </div>
+        </>
+      )}
     </div>
   )
 }
