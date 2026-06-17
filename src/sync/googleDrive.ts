@@ -25,6 +25,9 @@ export interface GoogleUserInfo {
 
 let tokenClient: any = null
 let accessToken: string | null = null
+// Epoch ms when the current access token lapses (GIS tokens last ~1h). 0 means
+// "no token". Lets us refresh proactively before Drive calls start 401-ing.
+let tokenExpiry = 0
 let initPromise: Promise<void> | null = null
 let cachedUserInfo: GoogleUserInfo | null = null
 
@@ -59,6 +62,20 @@ export function isSignedIn(): boolean {
   return accessToken !== null
 }
 
+// True while we hold a token that isn't about to expire. We treat anything
+// within 5 minutes of expiry as stale so callers can refresh ahead of time.
+export function tokenIsFresh(): boolean {
+  return accessToken !== null && Date.now() < tokenExpiry - 5 * 60 * 1000
+}
+
+// Silently grab a fresh token if the current one is missing or near expiry;
+// no-ops when it's still good. Relies on an active Google session — throws if a
+// token can't be obtained without a popup.
+export async function ensureFreshToken(): Promise<void> {
+  if (tokenIsFresh()) return
+  await signIn(false)
+}
+
 // Turn a Google Identity Services error type into something actionable. The
 // most common one in normal use is `popup_closed`: the sign-in window closed
 // before a token came back — usually because this site's origin isn't on the
@@ -81,6 +98,8 @@ export function signIn(interactive = true): Promise<string> {
     tokenClient.callback = (resp: any) => {
       if (resp.error) return reject(new Error(resp.error))
       accessToken = resp.access_token
+      // expires_in is seconds; default to an hour if Google omits it.
+      tokenExpiry = Date.now() + (Number(resp.expires_in) || 3600) * 1000
       resolve(accessToken!)
     }
     // Without this, a blocked/failed popup (e.g. this origin isn't in the OAuth
@@ -99,6 +118,7 @@ export function signOut(): void {
     window.google.accounts.oauth2.revoke(accessToken, () => {})
   }
   accessToken = null
+  tokenExpiry = 0
   cachedUserInfo = null
 }
 

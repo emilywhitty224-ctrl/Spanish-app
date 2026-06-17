@@ -12,6 +12,7 @@ import {
   shareFile as gShareFile,
   pickFile,
   fetchUserInfo,
+  ensureFreshToken,
 } from './googleDrive'
 import type { GoogleUserInfo } from './googleDrive'
 
@@ -44,6 +45,38 @@ interface SyncState {
 function isAuthError(e: unknown): boolean {
   const msg = e instanceof Error ? e.message : String(e)
   return /\b40[13]\b/.test(msg)
+}
+
+// Thrown when the Google session is genuinely gone and we can't get a token
+// without a popup. Callers map this to 'signed-out' (showing the reconnect
+// banner) rather than a generic sync error.
+const AUTH_LOST = 'auth-lost'
+export function isSessionLost(e: unknown): boolean {
+  const msg = e instanceof Error ? e.message : String(e)
+  return isAuthError(e) || msg === AUTH_LOST
+}
+
+// Run a Drive op so the user stays logged in across the ~1h token expiry without
+// a popup: refresh proactively if the token is near expiry, and if the call
+// still 401s (token revoked/expired early), try one silent re-auth and replay.
+// Only when a silent token can't be obtained do we throw AUTH_LOST.
+async function runSynced<T>(op: () => Promise<T>): Promise<T> {
+  try {
+    await ensureFreshToken()
+  } catch {
+    throw new Error(AUTH_LOST)
+  }
+  try {
+    return await op()
+  } catch (e) {
+    if (!isAuthError(e)) throw e
+    try {
+      await gSignIn(false)
+    } catch {
+      throw new Error(AUTH_LOST)
+    }
+    return op()
+  }
 }
 
 // Guards against the auto-saver firing while we're applying a remote snapshot.
@@ -154,14 +187,14 @@ export const useSync = create<SyncState>((set, get) => ({
     if (!fileId) return
     set({ busy: true, error: null })
     try {
-      const text = await readFile(fileId)
+      const text = await runSynced(() => readFile(fileId))
       const snapshot = JSON.parse(text) as SyncSnapshot
       applyingRemote = true
       useStore.getState().applySnapshot(snapshot)
       applyingRemote = false
       set({ lastSynced: new Date().toISOString() })
     } catch (e: any) {
-      if (isAuthError(e)) set({ status: 'signed-out' })
+      if (isSessionLost(e)) set({ status: 'signed-out' })
       set({ error: e.message ?? 'Sync failed' })
     } finally {
       set({ busy: false })
@@ -173,10 +206,10 @@ export const useSync = create<SyncState>((set, get) => ({
     if (!fileId) return
     try {
       const snapshot = useStore.getState().getSnapshot()
-      await writeFile(fileId, JSON.stringify(snapshot))
+      await runSynced(() => writeFile(fileId, JSON.stringify(snapshot)))
       set({ lastSynced: new Date().toISOString() })
     } catch (e: any) {
-      if (isAuthError(e)) set({ status: 'signed-out' })
+      if (isSessionLost(e)) set({ status: 'signed-out' })
       set({ error: e.message ?? 'Sync failed' })
     }
   },
