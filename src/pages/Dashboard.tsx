@@ -29,6 +29,7 @@ export function Dashboard() {
   const accuracy = myStats.totalAnswered > 0
     ? Math.round((myStats.totalCorrect / myStats.totalAnswered) * 100)
     : 0
+  const keyboardBest = myStats.bestScores['keyboard-lab']
 
   const today = new Date().toISOString().slice(0, 10)
   // Words seen before and scheduled for review today or earlier.
@@ -90,6 +91,10 @@ export function Dashboard() {
           <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
             <StatBox label="Class words (7d)" value={`${passiveThisWeek} 👀`} />
             <StatBox label="Active vocab" value={`${activeCount} 💪`} />
+            <StatBox
+              label="Keyboard"
+              value={keyboardBest !== undefined ? `${keyboardBest}% ⌨️` : '—'}
+            />
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -183,6 +188,17 @@ export function Dashboard() {
                 </div>
               </div>
             )}
+
+            <button
+              className="xp-btn xp-btn-large"
+              style={{ width: '100%', textAlign: 'left', padding: '12px 16px' }}
+              onClick={() => navigate('/keyboard-lab')}
+            >
+              <div style={{ fontSize: '16px', marginBottom: '4px' }}>⌨️ Keyboard Lab</div>
+              <div style={{ fontSize: '12px', fontWeight: 'normal', color: '#444' }}>
+                Learn the Spanish layout — accents, ñ, ¿/¡ vs your UK keyboard
+              </div>
+            </button>
 
             <button
               className="xp-btn"

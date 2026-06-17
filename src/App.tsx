@@ -15,6 +15,7 @@ import { Basics, BasicsPractice } from './pages/Basics'
 import { Placement } from './pages/Placement'
 import { Settings } from './pages/Settings'
 import { PreLessonBlitz } from './pages/PreLessonBlitz'
+import { KeyboardLab } from './pages/KeyboardLab'
 import { ReconnectBanner } from './components/ReconnectBanner'
 import './index.css'
 
@@ -49,6 +50,7 @@ function AppShell() {
         <Route path="/basics/play" element={<BasicsPractice />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/pre-lesson-blitz" element={<PreLessonBlitz />} />
+        <Route path="/keyboard-lab" element={<KeyboardLab />} />
         <Route path="/campaign/:mode" element={<PlaceholderPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
