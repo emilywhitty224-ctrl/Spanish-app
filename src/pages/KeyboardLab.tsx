@@ -161,6 +161,18 @@ function hintsFor(target: string): string[] {
 const KBD_PREFIX = 'kbd:'
 const kbdId = (target: string) => KBD_PREFIX + target
 
+// Best typing speed (WPM) for the drill. Kept in localStorage rather than the
+// synced stats store — it's a personal "beat your best" number, not a campaign
+// score, so it doesn't belong in streak/accuracy totals.
+const WPM_BEST_KEY = 'kbd-drill-wpm-best'
+function loadWpmBest(): number {
+  if (typeof localStorage === 'undefined') return 0
+  return Number(localStorage.getItem(WPM_BEST_KEY)) || 0
+}
+function saveWpmBest(v: number) {
+  if (typeof localStorage !== 'undefined') localStorage.setItem(WPM_BEST_KEY, String(v))
+}
+
 // Order the deck the same way the SRS picks vocab: overdue/due (weakest first)
 // → never-seen → upcoming. Mirrors pickDueFirst + weakestFirst on the shared
 // srs slice rather than a parallel store.
@@ -347,8 +359,15 @@ function DrillPanel() {
   // Indices solved / acted-on this session (so we don't double-count).
   const [solved, setSolved] = useState<Set<number>>(new Set())
   const [attempted, setAttempted] = useState<Set<number>>(new Set())
-  const [summary, setSummary] = useState<{ correct: number; total: number; pct: number } | null>(null)
+  const [summary, setSummary] = useState<{ correct: number; total: number; pct: number; wpm: number } | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+
+  // Speed tracking: time each card from the first keystroke to a correct
+  // answer, summing chars + ms across solved cards so a session yields a WPM.
+  const [wpmBest, setWpmBest] = useState(loadWpmBest)
+  const typingStartRef = useRef<number | null>(null)
+  const solvedCharsRef = useRef(0)
+  const solvedMsRef = useRef(0)
 
   // Audio: speak the target when it appears and when solved. The ref lets the
   // appearance effect read the current mute state without re-firing on toggle.
@@ -361,8 +380,10 @@ function DrillPanel() {
   const hints = useMemo(() => hintsFor(target), [target])
   const isCorrect = input === target
 
-  // Speak each card as it appears (small delay lets the previous utterance cancel).
+  // Speak each card as it appears (small delay lets the previous utterance
+  // cancel) and reset the per-card typing timer.
   useEffect(() => {
+    typingStartRef.current = null
     if (!target) return
     const id = setTimeout(() => say(target), 150)
     return () => clearTimeout(id)
@@ -378,6 +399,11 @@ function DrillPanel() {
 
   function commitIfCorrect(value: string) {
     if (value === target && !solved.has(idx)) {
+      if (typingStartRef.current != null) {
+        solvedMsRef.current += Date.now() - typingStartRef.current
+        solvedCharsRef.current += target.length
+        typingStartRef.current = null
+      }
       setSolved((prev) => new Set(prev).add(idx))
       say(target)
     }
@@ -412,13 +438,22 @@ function DrillPanel() {
     const total = attempted.size
     if (total === 0) return
     recordResult('keyboard-lab', correct, total)
-    setSummary({ correct, total, pct: Math.round((correct / total) * 100) })
+    const minutes = solvedMsRef.current / 60000
+    const wpm = minutes > 0 ? Math.round((solvedCharsRef.current / 5) / minutes) : 0
+    if (wpm > wpmBest) {
+      saveWpmBest(wpm)
+      setWpmBest(wpm)
+    }
+    setSummary({ correct, total, pct: Math.round((correct / total) * 100), wpm })
     // Fresh session: re-order from the now-updated SRS so weak targets lead.
     setOrder(orderDeck(useStore.getState().srs))
     setIdx(0)
     setInput('')
     setSolved(new Set())
     setAttempted(new Set())
+    solvedCharsRef.current = 0
+    solvedMsRef.current = 0
+    typingStartRef.current = null
   }
 
   return (
@@ -451,6 +486,7 @@ function DrillPanel() {
       <p style={{ fontSize: '12px', color: '#aaa', marginTop: 0, marginBottom: '10px' }}>
         Type this with your Spanish input source on · card {idx + 1} of {order.length}
         {bestKbd !== undefined && ` · best ${bestKbd}%`}
+        {wpmBest > 0 && ` · best ${wpmBest} WPM`}
       </p>
 
       {summary && (
@@ -460,7 +496,8 @@ function DrillPanel() {
           fontWeight: 'bold',
           marginBottom: '10px',
         }}>
-          🎉 Session saved: {summary.correct} / {summary.total} ({summary.pct}%). Counted toward your streak.
+          🎉 Session saved: {summary.correct} / {summary.total} ({summary.pct}%)
+          {summary.wpm > 0 && ` · ${summary.wpm} WPM`}. Counted toward your streak.
         </div>
       )}
 
@@ -512,8 +549,10 @@ function DrillPanel() {
         autoCorrect="off"
         placeholder="Type here…"
         onChange={(e) => {
-          setInput(e.target.value)
-          commitIfCorrect(e.target.value)
+          const v = e.target.value
+          if (typingStartRef.current === null && v.length > 0) typingStartRef.current = Date.now()
+          setInput(v)
+          commitIfCorrect(v)
         }}
         onKeyDown={(e) => {
           if (e.key === 'Enter' && isCorrect) leaveCard(1)
@@ -597,6 +636,14 @@ function LinesGame() {
   const [wrong, setWrong] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
+  // Stats: a finished set counts toward the streak, scored by first-try
+  // accuracy (lines completed / submit attempts). recordedRef guards against
+  // recording the same completed set more than once.
+  const recordResult = useStore((s) => s.recordResult)
+  const bestLines = useStore((s) => s.stats.bestScores['keyboard-lines'])
+  const [attempts, setAttempts] = useState(0)
+  const recordedRef = useRef(false)
+
   const [muted, setMuted] = useState(false)
   const mutedRef = useRef(muted)
   useEffect(() => { mutedRef.current = muted }, [muted])
@@ -623,11 +670,17 @@ function LinesGame() {
 
   function submit() {
     if (finished) return
+    setAttempts((a) => a + 1)
     if (matches) {
-      setDone((d) => d + 1)
+      const nextDone = done + 1
+      setDone(nextDone)
       setInput('')
       setWrong(false)
       say(line.es)
+      if (nextDone >= LINES_TARGET && !recordedRef.current) {
+        recordedRef.current = true
+        recordResult('keyboard-lines', LINES_TARGET, attempts + 1)
+      }
       inputRef.current?.focus()
     } else {
       setWrong(true)
@@ -639,6 +692,8 @@ function LinesGame() {
     setInput('')
     setDone(0)
     setWrong(false)
+    setAttempts(0)
+    recordedRef.current = false
     inputRef.current?.focus()
   }
 
@@ -675,6 +730,11 @@ function LinesGame() {
           />
         </div>
       </div>
+
+      <p style={{ fontSize: '12px', color: '#aaa', marginTop: 0, marginBottom: '10px' }}>
+        Write Barny's line {LINES_TARGET} times
+        {bestLines !== undefined && ` · best ${bestLines}%`}
+      </p>
 
       <Barny size="small" pose={pose} message={message} />
 
@@ -737,9 +797,15 @@ function LinesGame() {
       </div>
 
       {finished ? (
-        <button className="xp-btn" style={{ width: '100%' }} onClick={newLine}>
-          New line →
-        </button>
+        <>
+          <div style={{ fontSize: '12px', color: '#4caf50', fontWeight: 'bold', marginBottom: '10px' }}>
+            🎉 Saved to your streak
+            {attempts > 0 && ` · ${Math.round((LINES_TARGET / attempts) * 100)}% first-try accuracy`}.
+          </div>
+          <button className="xp-btn" style={{ width: '100%' }} onClick={newLine}>
+            New line →
+          </button>
+        </>
       ) : (
         <>
           <input
