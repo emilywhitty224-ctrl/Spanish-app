@@ -13,6 +13,7 @@ import {
   pickFile,
   fetchUserInfo,
   ensureFreshToken,
+  tokenIsFresh,
 } from './googleDrive'
 import type { GoogleUserInfo } from './googleDrive'
 
@@ -114,10 +115,11 @@ export const useSync = create<SyncState>((set, get) => ({
     }
   },
 
-  // Startup path: if we connected before (have a saved fileId), try to grab a
-  // fresh access token silently — no popup. Works as long as there's still an
-  // active Google session and consent was granted before, so the user stays
-  // "logged in" across reloads. Falls back quietly to signed-out otherwise.
+  // Startup path: if we connected before (have a saved fileId), get back to
+  // 'connected' without a popup. A cached token restored from localStorage keeps
+  // the user signed in across reloads within its ~1h life; only once it's gone
+  // do we attempt a silent re-grant (which Safari/Chrome may block). Falls back
+  // quietly to signed-out otherwise.
   reconnect: async () => {
     if (!driveConfigured || !get().fileId) {
       set({ reconnectAttempted: true })
@@ -125,7 +127,8 @@ export const useSync = create<SyncState>((set, get) => ({
     }
     try {
       await initGoogle()
-      await gSignIn(false)
+      // Reuse a still-valid restored token; only ask Google if it's missing/stale.
+      if (!tokenIsFresh()) await gSignIn(false)
       const info = await fetchUserInfo()
       set({ userInfo: info, status: 'connected' })
     } catch {

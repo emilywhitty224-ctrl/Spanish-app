@@ -31,6 +31,43 @@ let tokenExpiry = 0
 let initPromise: Promise<void> | null = null
 let cachedUserInfo: GoogleUserInfo | null = null
 
+// We cache the access token + expiry in localStorage so a page refresh within
+// the token's ~1h lifetime keeps the user signed in without asking Google for a
+// new token — the silent re-grant is unreliable (Safari/Chrome block the
+// third-party cookie it needs), so reusing a still-valid token is what actually
+// keeps people logged in across reloads.
+const TOKEN_KEY = 'spanish-app-google-token'
+
+function persistToken(): void {
+  try {
+    if (accessToken && tokenExpiry > Date.now()) {
+      localStorage.setItem(TOKEN_KEY, JSON.stringify({ accessToken, tokenExpiry }))
+    } else {
+      localStorage.removeItem(TOKEN_KEY)
+    }
+  } catch {
+    // localStorage can be unavailable (private mode / quota) — sync still works
+    // for this session, we just won't survive a reload.
+  }
+}
+
+// Restore a cached token on module load if it hasn't expired.
+;(function restoreToken() {
+  try {
+    const raw = localStorage.getItem(TOKEN_KEY)
+    if (!raw) return
+    const saved = JSON.parse(raw) as { accessToken?: string; tokenExpiry?: number }
+    if (saved.accessToken && typeof saved.tokenExpiry === 'number' && saved.tokenExpiry > Date.now()) {
+      accessToken = saved.accessToken
+      tokenExpiry = saved.tokenExpiry
+    } else {
+      localStorage.removeItem(TOKEN_KEY)
+    }
+  } catch {
+    // Corrupt/blocked storage — fall back to a fresh sign-in.
+  }
+})()
+
 function loadScript(src: string): Promise<void> {
   return new Promise((resolve, reject) => {
     if (document.querySelector(`script[src="${src}"]`)) return resolve()
@@ -100,6 +137,7 @@ export function signIn(interactive = true): Promise<string> {
       accessToken = resp.access_token
       // expires_in is seconds; default to an hour if Google omits it.
       tokenExpiry = Date.now() + (Number(resp.expires_in) || 3600) * 1000
+      persistToken()
       resolve(accessToken!)
     }
     // Without this, a blocked/failed popup (e.g. this origin isn't in the OAuth
@@ -120,6 +158,7 @@ export function signOut(): void {
   accessToken = null
   tokenExpiry = 0
   cachedUserInfo = null
+  persistToken()
 }
 
 export async function fetchUserInfo(): Promise<GoogleUserInfo> {
