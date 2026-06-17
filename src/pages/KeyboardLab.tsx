@@ -72,6 +72,17 @@ const CHEAT_SHEET: CheatRow[] = [
   { want: '"', how: 'Shift + 2' },
 ]
 
+// On phones/tablets there's no physical layout to switch to — the built-in
+// keyboard already types Spanish via long-press. This is the mobile equivalent
+// of the desktop cheat sheet above.
+const MOBILE_CHEAT: CheatRow[] = [
+  { want: 'á é í ó ú', how: 'Long-press the vowel, then slide to the accented one' },
+  { want: 'ñ', how: 'Long-press the n key' },
+  { want: 'ü', how: 'Long-press u and pick ü' },
+  { want: 'ç', how: 'Long-press c' },
+  { want: '¿ ¡', how: 'On the “123 / #+=” symbols layer (long-press ? and ! on iOS)' },
+]
+
 // How to type each special character on the Spanish (Spain) layout.
 const KEYSTROKE: Record<string, string> = {
   á: 'press ´ then a',
@@ -176,8 +187,25 @@ function orderDeck(srs: Record<string, SrsEntry> | undefined): string[] {
   return [...due, ...fresh, ...upcoming]
 }
 
+// True on touch devices (coarse pointer). Drives the mobile-vs-desktop guidance
+// swap so phone users don't see a "switch macOS to Spanish ISO" diagram that
+// doesn't apply to them.
+function useIsMobile(): boolean {
+  const [mobile, setMobile] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches,
+  )
+  useEffect(() => {
+    const mq = window.matchMedia('(pointer: coarse)')
+    const onChange = () => setMobile(mq.matches)
+    mq.addEventListener('change', onChange)
+    return () => mq.removeEventListener('change', onChange)
+  }, [])
+  return mobile
+}
+
 export function KeyboardLab() {
   const navigate = useNavigate()
+  const isMobile = useIsMobile()
 
   return (
     <div style={{
@@ -200,77 +228,92 @@ export function KeyboardLab() {
               color: 'var(--color-accent)',
               margin: 0,
             }}>
-              ⌨️ Spanish (Spain) keyboard
+              {isMobile ? '📱 Spanish on your phone' : '⌨️ Spanish (Spain) keyboard'}
             </h2>
-            <p style={{ fontSize: '12px', color: '#aaa', marginTop: '4px' }}>
-              Switch macOS to the <strong>Spanish (Spain) ISO</strong> input source, and your
-              UK keys produce the characters on your cover. The <strong>highlighted</strong> keys
-              below are the ones you reach for to type Spanish — accents, ñ, ç and ¿/¡. Each key
-              shows its <strong>Shift</strong> (top-right) and <strong>AltGr</strong> (bottom-right)
-              faces too.
-            </p>
+            {isMobile ? (
+              <p style={{ fontSize: '12px', color: '#aaa', marginTop: '4px' }}>
+                No need to switch keyboards — your phone already types Spanish.
+                <strong> Hold a letter down</strong> and its accented versions pop up
+                (hold <strong>n</strong> for ñ, hold a vowel for á é í ó ú). The drills
+                below work exactly the same.
+              </p>
+            ) : (
+              <p style={{ fontSize: '12px', color: '#aaa', marginTop: '4px' }}>
+                Switch macOS to the <strong>Spanish (Spain) ISO</strong> input source, and your
+                UK keys produce the characters on your cover. The <strong>highlighted</strong> keys
+                below are the ones you reach for to type Spanish — accents, ñ, ç and ¿/¡. Each key
+                shows its <strong>Shift</strong> (top-right) and <strong>AltGr</strong> (bottom-right)
+                faces too.
+              </p>
+            )}
           </div>
 
-          {/* Keyboard diagram */}
-          <div style={{
-            border: '1px solid var(--color-button-shadow)',
-            borderRadius: '6px',
-            padding: '10px',
-            background: 'rgba(255,255,255,0.03)',
-            marginBottom: '16px',
-          }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              {ROWS.map((row, i) => (
-                <div key={i} style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
-                  {row.map((key) => (
-                    <Key key={key.base} def={key} />
+          {isMobile ? (
+            <MobileGuide />
+          ) : (
+            <>
+              {/* Keyboard diagram */}
+              <div style={{
+                border: '1px solid var(--color-button-shadow)',
+                borderRadius: '6px',
+                padding: '10px',
+                background: 'rgba(255,255,255,0.03)',
+                marginBottom: '16px',
+              }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  {ROWS.map((row, i) => (
+                    <div key={i} style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
+                      {row.map((key) => (
+                        <Key key={key.base} def={key} />
+                      ))}
+                    </div>
                   ))}
                 </div>
-              ))}
-            </div>
-            <div style={{ display: 'flex', gap: '14px', marginTop: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
-              <Legend swatch="var(--color-accent)" text="Spanish accents & punctuation" />
-              <Legend swatch="transparent" text="Same position as UK" />
-            </div>
-          </div>
-
-          {/* Cheat sheet */}
-          <div style={{
-            border: '1px solid var(--color-button-shadow)',
-            borderRadius: '6px',
-            padding: '10px 12px',
-            background: 'rgba(255,255,255,0.03)',
-          }}>
-            <div style={{ fontSize: '11px', color: '#888', letterSpacing: '0.5px', marginBottom: '8px' }}>
-              SPANISH vs UK — HOW TO TYPE IT
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              {CHEAT_SHEET.map((row) => (
-                <div key={row.want} style={{
-                  display: 'flex',
-                  alignItems: 'baseline',
-                  gap: '12px',
-                  fontSize: '13px',
-                  paddingBottom: '6px',
-                  borderBottom: '1px solid rgba(255,255,255,0.06)',
-                }}>
-                  <span style={{
-                    color: 'var(--color-accent)',
-                    fontWeight: 'bold',
-                    minWidth: '90px',
-                    fontFamily: 'monospace',
-                  }}>
-                    {row.want}
-                  </span>
-                  <span style={{ color: '#bbb' }}>{row.how}</span>
+                <div style={{ display: 'flex', gap: '14px', marginTop: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                  <Legend swatch="var(--color-accent)" text="Spanish accents & punctuation" />
+                  <Legend swatch="transparent" text="Same position as UK" />
                 </div>
-              ))}
-            </div>
-            <p style={{ fontSize: '11px', color: '#888', marginTop: '10px', marginBottom: 0 }}>
-              💡 A <strong>dead key</strong> shows nothing until you press the next key — tap
-              ´ then a to get á.
-            </p>
-          </div>
+              </div>
+
+              {/* Cheat sheet */}
+              <div style={{
+                border: '1px solid var(--color-button-shadow)',
+                borderRadius: '6px',
+                padding: '10px 12px',
+                background: 'rgba(255,255,255,0.03)',
+              }}>
+                <div style={{ fontSize: '11px', color: '#888', letterSpacing: '0.5px', marginBottom: '8px' }}>
+                  SPANISH vs UK — HOW TO TYPE IT
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  {CHEAT_SHEET.map((row) => (
+                    <div key={row.want} style={{
+                      display: 'flex',
+                      alignItems: 'baseline',
+                      gap: '12px',
+                      fontSize: '13px',
+                      paddingBottom: '6px',
+                      borderBottom: '1px solid rgba(255,255,255,0.06)',
+                    }}>
+                      <span style={{
+                        color: 'var(--color-accent)',
+                        fontWeight: 'bold',
+                        minWidth: '90px',
+                        fontFamily: 'monospace',
+                      }}>
+                        {row.want}
+                      </span>
+                      <span style={{ color: '#bbb' }}>{row.how}</span>
+                    </div>
+                  ))}
+                </div>
+                <p style={{ fontSize: '11px', color: '#888', marginTop: '10px', marginBottom: 0 }}>
+                  💡 A <strong>dead key</strong> shows nothing until you press the next key — tap
+                  ´ then a to get á.
+                </p>
+              </div>
+            </>
+          )}
 
           <DrillPanel />
 
@@ -735,6 +778,49 @@ function LinesGame() {
           </div>
         </>
       )}
+    </div>
+  )
+}
+
+// Mobile replacement for the desktop key diagram + cheat sheet: how to reach
+// each Spanish character via long-press on a phone keyboard.
+function MobileGuide() {
+  return (
+    <div style={{
+      border: '1px solid var(--color-button-shadow)',
+      borderRadius: '6px',
+      padding: '10px 12px',
+      background: 'rgba(255,255,255,0.03)',
+      marginBottom: '16px',
+    }}>
+      <div style={{ fontSize: '11px', color: '#888', letterSpacing: '0.5px', marginBottom: '8px' }}>
+        SPANISH ON YOUR PHONE — HOW TO TYPE IT
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+        {MOBILE_CHEAT.map((row) => (
+          <div key={row.want} style={{
+            display: 'flex',
+            alignItems: 'baseline',
+            gap: '12px',
+            fontSize: '13px',
+            paddingBottom: '6px',
+            borderBottom: '1px solid rgba(255,255,255,0.06)',
+          }}>
+            <span style={{
+              color: 'var(--color-accent)',
+              fontWeight: 'bold',
+              minWidth: '90px',
+              fontFamily: 'monospace',
+            }}>
+              {row.want}
+            </span>
+            <span style={{ color: '#bbb' }}>{row.how}</span>
+          </div>
+        ))}
+      </div>
+      <p style={{ fontSize: '11px', color: '#888', marginTop: '10px', marginBottom: 0 }}>
+        💡 Hold a key down until the accent options appear, then slide your finger to the one you want.
+      </p>
     </div>
   )
 }
