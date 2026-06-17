@@ -1,7 +1,8 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { XpWindow } from '../components/XpWindow'
 import { Barny, type BarneyPose } from '../components/Barny'
+import { speak, speechSupported } from '../utils/speak'
 import { useStore, type SrsEntry } from '../store/useStore'
 
 // Spanish (Spain) ISO layout. `base` is the unshifted face; `shift`/`alt`
@@ -306,9 +307,23 @@ function DrillPanel() {
   const [summary, setSummary] = useState<{ correct: number; total: number; pct: number } | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
+  // Audio: speak the target when it appears and when solved. The ref lets the
+  // appearance effect read the current mute state without re-firing on toggle.
+  const [muted, setMuted] = useState(false)
+  const mutedRef = useRef(muted)
+  useEffect(() => { mutedRef.current = muted }, [muted])
+  const say = (text: string) => { if (!mutedRef.current && speechSupported) speak(text) }
+
   const target = order[idx]
   const hints = useMemo(() => hintsFor(target), [target])
   const isCorrect = input === target
+
+  // Speak each card as it appears (small delay lets the previous utterance cancel).
+  useEffect(() => {
+    if (!target) return
+    const id = setTimeout(() => say(target), 150)
+    return () => clearTimeout(id)
+  }, [target])
 
   // First index where the typed input diverges from the target (-1 if none yet).
   const firstError = useMemo(() => {
@@ -321,6 +336,7 @@ function DrillPanel() {
   function commitIfCorrect(value: string) {
     if (value === target && !solved.has(idx)) {
       setSolved((prev) => new Set(prev).add(idx))
+      say(target)
     }
   }
 
@@ -374,8 +390,18 @@ function DrillPanel() {
         <div style={{ fontSize: '11px', color: '#888', letterSpacing: '0.5px' }}>
           TYPING DRILL
         </div>
-        <div style={{ fontSize: '12px', color: 'var(--color-accent)', fontWeight: 'bold' }}>
-          {solved.size} / {attempted.size} correct
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <span style={{ fontSize: '12px', color: 'var(--color-accent)', fontWeight: 'bold' }}>
+            {solved.size} / {attempted.size} correct
+          </span>
+          <SpeakerToggle
+            muted={muted}
+            onToggle={() => setMuted((m) => {
+              const next = !m
+              if (!next && speechSupported) speak(target)
+              return next
+            })}
+          />
         </div>
       </div>
 
@@ -527,9 +553,20 @@ function LinesGame() {
   const [wrong, setWrong] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
+  const [muted, setMuted] = useState(false)
+  const mutedRef = useRef(muted)
+  useEffect(() => { mutedRef.current = muted }, [muted])
+  const say = (text: string) => { if (!mutedRef.current && speechSupported) speak(text) }
+
   const hints = useMemo(() => hintsFor(line.es), [line])
   const finished = done >= LINES_TARGET
   const matches = input === line.es
+
+  // Read the line aloud when Barny presents a new one.
+  useEffect(() => {
+    const id = setTimeout(() => say(line.es), 150)
+    return () => clearTimeout(id)
+  }, [line])
 
   function submit() {
     if (finished) return
@@ -537,6 +574,7 @@ function LinesGame() {
       setDone((d) => d + 1)
       setInput('')
       setWrong(false)
+      say(line.es)
       inputRef.current?.focus()
     } else {
       setWrong(true)
@@ -570,8 +608,18 @@ function LinesGame() {
         <div style={{ fontSize: '11px', color: '#888', letterSpacing: '0.5px' }}>
           WRITE LINES WITH BARNY
         </div>
-        <div style={{ fontSize: '12px', color: 'var(--color-accent)', fontWeight: 'bold' }}>
-          {done} / {LINES_TARGET} lines
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <span style={{ fontSize: '12px', color: 'var(--color-accent)', fontWeight: 'bold' }}>
+            {done} / {LINES_TARGET} lines
+          </span>
+          <SpeakerToggle
+            muted={muted}
+            onToggle={() => setMuted((m) => {
+              const next = !m
+              if (!next && speechSupported) speak(line.es)
+              return next
+            })}
+          />
         </div>
       </div>
 
@@ -688,6 +736,22 @@ function LinesGame() {
         </>
       )}
     </div>
+  )
+}
+
+// Small 🔊/🔇 button for a panel header. Hidden entirely when the browser has
+// no speech synthesis, so we never show a dead control.
+function SpeakerToggle({ muted, onToggle }: { muted: boolean; onToggle: () => void }) {
+  if (!speechSupported) return null
+  return (
+    <button
+      className="xp-btn"
+      onClick={onToggle}
+      title={muted ? 'Audio off — click to hear words' : 'Audio on — click to mute'}
+      style={{ fontSize: '11px', padding: '2px 8px' }}
+    >
+      {muted ? '🔇' : '🔊'}
+    </button>
   )
 }
 
