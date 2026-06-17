@@ -190,11 +190,10 @@ export function KeyboardLab() {
             padding: '10px',
             background: 'rgba(255,255,255,0.03)',
             marginBottom: '16px',
-            overflowX: 'auto',
           }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', minWidth: 'fit-content' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
               {ROWS.map((row, i) => (
-                <div key={i} style={{ display: 'flex', gap: '5px', justifyContent: 'center' }}>
+                <div key={i} style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
                   {row.map((key) => (
                     <Key key={key.base} def={key} />
                   ))}
@@ -479,8 +478,10 @@ function Key({ def }: { def: KeyDef }) {
   return (
     <div style={{
       position: 'relative',
-      minWidth: '38px',
-      height: '38px',
+      flex: '1 1 0',
+      minWidth: 0,
+      maxWidth: '46px',
+      aspectRatio: '1 / 1',
       boxSizing: 'border-box',
       padding: '2px 4px',
       borderRadius: '4px',
