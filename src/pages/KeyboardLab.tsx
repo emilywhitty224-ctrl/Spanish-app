@@ -518,6 +518,7 @@ function DrillPanel() {
         onKeyDown={(e) => {
           if (e.key === 'Enter' && isCorrect) leaveCard(1)
         }}
+        onPaste={(e) => e.preventDefault()}
         style={{
           width: '100%',
           boxSizing: 'border-box',
@@ -605,6 +606,15 @@ function LinesGame() {
   const finished = done >= LINES_TARGET
   const matches = input === line.es
 
+  // First index where typed input diverges from the line (-1 if none yet), so
+  // we can highlight exactly where the typo is — same approach as the drill.
+  const firstError = useMemo(() => {
+    for (let i = 0; i < input.length; i++) {
+      if (input[i] !== line.es[i]) return i
+    }
+    return -1
+  }, [input, line])
+
   // Read the line aloud when Barny presents a new one.
   useEffect(() => {
     const id = setTimeout(() => say(line.es), 150)
@@ -668,7 +678,7 @@ function LinesGame() {
 
       <Barny size="small" pose={pose} message={message} />
 
-      {/* The line to copy + its meaning. */}
+      {/* The line to copy, with per-character feedback as you type. */}
       <div style={{
         fontFamily: 'monospace',
         fontSize: '16px',
@@ -678,7 +688,22 @@ function LinesGame() {
         borderRadius: '4px',
         background: 'rgba(0,0,0,0.15)',
       }}>
-        {line.es}
+        {line.es.split('').map((ch, i) => {
+          let color = '#888' // not yet typed
+          if (firstError === -1 && i < input.length) color = '#4caf50' // correct so far
+          else if (firstError !== -1 && i < firstError) color = '#4caf50'
+          else if (i === firstError) color = '#e53935' // first wrong char
+          // Render spaces as real spaces, except a mistyped one shows as ␣ so it's visible.
+          return (
+            <span key={i} style={{ color }}>
+              {ch === ' ' ? (i === firstError ? '␣' : ' ') : ch}
+            </span>
+          )
+        })}
+        {/* Extra typed characters past the line length are errors too. */}
+        {input.length > line.es.length && (
+          <span style={{ color: '#e53935' }}>{'·'.repeat(input.length - line.es.length)}</span>
+        )}
       </div>
       <p style={{ fontSize: '12px', color: '#9bb3c9', fontStyle: 'italic', textAlign: 'center', margin: '0 0 10px' }}>
         “{line.en}”
@@ -731,6 +756,7 @@ function LinesGame() {
             onKeyDown={(e) => {
               if (e.key === 'Enter') submit()
             }}
+            onPaste={(e) => e.preventDefault()}
             style={{
               width: '100%',
               boxSizing: 'border-box',
