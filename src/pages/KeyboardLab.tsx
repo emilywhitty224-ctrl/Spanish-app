@@ -124,19 +124,21 @@ const TRANSLATION: Record<string, string> = Object.fromEntries(
 )
 
 // Barny's detention lines, Bart-Simpson-chalkboard style: absurd first-person
-// promises a misbehaving dog gets made to write — each one still packs in a few
-// accents/ñ/¿¡ so you drill the special keys.
+// promises a misbehaving dog gets made to write. Every line is deliberately
+// dense in special keys so you actually drill the Spanish layout — between them
+// they cover ñ, ¿, ¡, ü and all five accented vowels (á é í ó ú), and each line
+// carries several at once rather than a lone accent.
 const LINES: { es: string; en: string }[] = [
-  { es: 'No me comeré los zapatos otra vez.', en: 'I will not eat the shoes again.' },
-  { es: 'No ladraré al cartero. Es mi amigo.', en: 'I will not bark at the postman. He is my friend.' },
-  { es: 'El sofá no es mi baño.', en: 'The sofa is not my bathroom.' },
-  { es: 'No robaré jamón de la mesa.', en: 'I will not steal ham from the table.' },
-  { es: 'Perseguir mi cola no me hará más listo.', en: "Chasing my tail won't make me smarter." },
-  { es: 'Prometo portarme bien... mañana.', en: 'I promise to behave... tomorrow.' },
-  { es: 'Los calcetines no son comida, según Barny.', en: 'Socks are not food, according to Barny.' },
-  { es: '¿Quién rompió el jarrón? No fui yo.', en: "Who broke the vase? It wasn't me." },
-  { es: 'No haré zoomies a las tres de la mañana.', en: 'I will not do zoomies at three in the morning.' },
-  { es: 'El gato del vecino algún día será mi amigo.', en: 'The cat next door will be my friend someday.' },
+  { es: '¡Prometo que mañana me portaré como un campeón!', en: 'I promise that tomorrow I will behave like a champion!' },
+  { es: '¿Quién rompió el jarrón? ¡Yo no fui, fue el gato!', en: "Who broke the vase? It wasn't me, it was the cat!" },
+  { es: 'No perseguiré mi cola a las tres de la mañana, ¡jamás!', en: 'I will never chase my tail at three in the morning!' },
+  { es: 'El pingüino del zoológico es mi héroe, según mi corazón.', en: 'The penguin at the zoo is my hero, according to my heart.' },
+  { es: '¡Qué rico el jamón! Pero no es mío, así que no lo robaré.', en: "How tasty the ham is! But it's not mine, so I won't steal it." },
+  { es: 'Mañana aprenderé español sin morder ningún lápiz.', en: 'Tomorrow I will learn Spanish without biting a single pencil.' },
+  { es: '¿Cómo se dice perdón en español? Yo aún no lo sé.', en: "How do you say sorry in Spanish? I still don't know." },
+  { es: 'El sofá no es mi baño, ni el jardín es mi montaña.', en: 'The sofa is not my bathroom, nor is the garden my mountain.' },
+  { es: 'Mi dueña dice que soy un ángel... casi siempre, según ella.', en: "My owner says I'm an angel... almost always, according to her." },
+  { es: '¡Ay! No quería romper el jarrón; fue sin querer, ¿vale?', en: "Oops! I didn't mean to break the vase; it was an accident, okay?" },
 ]
 
 // How many times you must write the line correctly to finish.

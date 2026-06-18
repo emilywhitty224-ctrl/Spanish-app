@@ -1,5 +1,13 @@
 @import './styles/themes.css';
 
+/* The whole UI is scaled up uniformly so text/buttons/images grow together.
+   --ui-scale is the single source of truth (set per-breakpoint below) and is
+   applied with transform: scale() — the standards-based equivalent of the old
+   non-standard `zoom`, supported everywhere and without zoom's reflow quirks. */
+:root {
+  --ui-scale: 1;
+}
+
 * {
   box-sizing: border-box;
   margin: 0;
@@ -13,11 +21,23 @@ body {
   color: var(--color-body-text);
   height: 100dvh;
   overflow: hidden;
+  /* Keep content clear of the notch, status bar and home indicator when
+     running full-screen from the home screen (viewport-fit=cover). The insets
+     live on body — not #root — so they are NOT multiplied by --ui-scale. */
+  padding:
+    env(safe-area-inset-top, 0px)
+    env(safe-area-inset-right, 0px)
+    env(safe-area-inset-bottom, 0px)
+    env(safe-area-inset-left, 0px);
 }
 
 #root {
-  width: 100vw;
-  height: 100dvh;
+  /* Sized at 1/scale of the safe area, then scaled back up from the top-left
+     so the rendered box exactly fills the available space (no overflow). */
+  width: calc(100% / var(--ui-scale));
+  height: calc(100% / var(--ui-scale));
+  transform: scale(var(--ui-scale));
+  transform-origin: top left;
   display: flex;
   align-items: stretch;
   justify-content: center;
@@ -25,13 +45,10 @@ body {
 }
 
 @media (max-width: 767px) {
-  /* Mobile gets a uniform zoom, mirroring the desktop branch below, so
-     everything (text, buttons, images, padding) scales up together —
-     not just the few font sizes overridden in this block. */
-  #root {
-    width: calc(100vw / 1.15);
-    height: calc(100dvh / 1.15);
-    zoom: 1.15;
+  /* Mobile bumps the uniform scale so everything (text, buttons, images,
+     padding) grows together — not just the few font sizes tweaked below. */
+  :root {
+    --ui-scale: 1.15;
   }
 
   body {
@@ -70,10 +87,8 @@ body {
 }
 
 @media (min-width: 768px) {
-  #root {
-    width: calc(100vw / 1.3);
-    height: calc(100dvh / 1.3);
-    zoom: 1.3;
+  :root {
+    --ui-scale: 1.3;
   }
 }
 
