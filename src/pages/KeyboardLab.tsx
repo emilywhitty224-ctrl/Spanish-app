@@ -4,6 +4,7 @@ import { XpWindow } from '../components/XpWindow'
 import { Barny, type BarneyPose } from '../components/Barny'
 import { speak, speechSupported } from '../utils/speak'
 import { useStore, type SrsEntry } from '../store/useStore'
+import { CULTURE_FACTS } from '../data/culture'
 
 // Spanish (Spain) ISO layout. `base` is the unshifted face; `shift`/`alt`
 // (AltGr) are the secondary faces printed on the same key. `diff: true` marks
@@ -139,7 +140,35 @@ const LINES: { es: string; en: string }[] = [
   { es: 'El sofá no es mi baño, ni el jardín es mi montaña.', en: 'The sofa is not my bathroom, nor is the garden my mountain.' },
   { es: 'Mi dueña dice que soy un ángel... casi siempre, según ella.', en: "My owner says I'm an angel... almost always, according to her." },
   { es: '¡Ay! No quería romper el jarrón; fue sin querer, ¿vale?', en: "Oops! I didn't mean to break the vase; it was an accident, okay?" },
+  { es: '¡Jamás perseguiré al cartero! Bueno... quizá mañana sí, según mi corazón.', en: 'I will never chase the postman! Well... maybe tomorrow yes, according to my heart.' },
+  { es: '¿Por qué le ladré a mi propia sombra? Ni yo lo sé, ¡qué vergüenza!', en: "Why did I bark at my own shadow? I don't even know, how embarrassing!" },
+  { es: 'Prometo no robar el jamón, aunque huela increíble y mi barriga gruña.', en: 'I promise not to steal the ham, even though it smells incredible and my belly growls.' },
+  { es: 'No esconderé los calcetines en el jardín nunca más... probablemente.', en: "I won't hide the socks in the garden ever again... probably." },
+  { es: 'El veterinario es mi héroe, aunque mi cola tiemble y diga lo contrario.', en: 'The vet is my hero, even though my tail trembles and says otherwise.' },
+  { es: '¡Ay! Me comí tus deberes de español. Estaban deliciosos, lo siento muchísimo.', en: "Oops! I ate your Spanish homework. It was delicious, I'm terribly sorry." },
+  { es: 'Mañana dormiré menos la siesta y estudiaré más, ¡te lo prometo, campeón!', en: "Tomorrow I'll nap less and study more, I promise you, champion!" },
+  { es: '¿Quién dejó huellas de barro en el sofá? El gato, según mi versión oficial.', en: 'Who left muddy prints on the sofa? The cat, according to my official version.' },
+  { es: 'No perseguiré ninguna ardilla en español... aunque la tentación es grandísima.', en: "I won't chase any squirrel in Spanish... although the temptation is huge." },
+  { es: 'Mi dueña dice que soy un señor muy educado. Casi nunca miente, ¿verdad?', en: "My owner says I'm a very polite gentleman. She almost never lies, right?" },
+  { es: 'Prometo no aullar a las dos de la mañana solo porque vi una nube rara.', en: "I promise not to howl at two in the morning just because I saw a weird cloud." },
+  { es: '¡Qué difícil es portarse bien! Pero mañana seré un perro angelical, lo juro.', en: "How hard it is to behave! But tomorrow I'll be an angelic dog, I swear." },
 ]
+
+// Same {es, en} shape as Barny's lines, sourced from the Spain/Valencia culture
+// facts so the lines game can double as a "type a real fact" history drill.
+// Many facts carry accents/ñ (España, América, río, terminó, República…), so
+// they still exercise the Spanish layout.
+const CULTURE_LINES: { es: string; en: string }[] = CULTURE_FACTS.map((f) => ({
+  es: f.spanish,
+  en: f.english,
+}))
+
+// The two line sources the "Write Lines" game can draw from.
+const LINE_SOURCES = {
+  barny: { label: '🐾 Barny', lines: LINES },
+  culture: { label: '🇪🇸 Spain & Valencia', lines: CULTURE_LINES },
+} as const
+type LineSource = keyof typeof LINE_SOURCES
 
 // How many times you must write the line correctly to finish.
 const LINES_TARGET = 2
@@ -633,8 +662,14 @@ function DrillPanel() {
 // so it drills the special keys under light pressure. Purely for fun: it keeps
 // its own count and doesn't touch the SRS or stats.
 function LinesGame() {
-  const pick = () => LINES[Math.floor(Math.random() * LINES.length)]
-  const [line, setLine] = useState(pick)
+  // Which line bank we're drilling: Barny's detention lines or Spain/Valencia
+  // facts. Switching sources starts a fresh line from that bank.
+  const [source, setSource] = useState<LineSource>('barny')
+  const pickFrom = (src: LineSource) => {
+    const pool = LINE_SOURCES[src].lines
+    return pool[Math.floor(Math.random() * pool.length)]
+  }
+  const [line, setLine] = useState(() => pickFrom('barny'))
   const [input, setInput] = useState('')
   const [done, setDone] = useState(0)
   const [wrong, setWrong] = useState(false)
@@ -691,14 +726,24 @@ function LinesGame() {
     }
   }
 
-  function newLine() {
-    setLine(pick())
+  function resetTo(nextLine: { es: string; en: string }) {
+    setLine(nextLine)
     setInput('')
     setDone(0)
     setWrong(false)
     setAttempts(0)
     recordedRef.current = false
     inputRef.current?.focus()
+  }
+
+  function newLine() {
+    resetTo(pickFrom(source))
+  }
+
+  function switchSource(next: LineSource) {
+    if (next === source) return
+    setSource(next)
+    resetTo(pickFrom(next))
   }
 
   const pose: BarneyPose = finished ? 'celebrate' : wrong ? 'sad' : 'neutral'
@@ -736,9 +781,32 @@ function LinesGame() {
       </div>
 
       <p style={{ fontSize: '12px', color: '#aaa', marginTop: 0, marginBottom: '10px' }}>
-        Write Barny's line {LINES_TARGET} times
+        Write each line {LINES_TARGET} times
         {bestLines !== undefined && ` · best ${bestLines}%`}
       </p>
+
+      {/* Choose the line bank: Barny's lines or Spain/Valencia facts. */}
+      <div style={{ display: 'flex', gap: '6px', marginBottom: '10px' }}>
+        {(Object.keys(LINE_SOURCES) as LineSource[]).map((src) => {
+          const active = src === source
+          return (
+            <button
+              key={src}
+              className="xp-btn"
+              onClick={() => switchSource(src)}
+              style={{
+                flex: 1,
+                fontSize: '11px',
+                fontWeight: active ? 'bold' : 'normal',
+                background: active ? 'rgba(255,255,255,0.12)' : undefined,
+                color: active ? 'var(--color-accent)' : undefined,
+              }}
+            >
+              {LINE_SOURCES[src].label}
+            </button>
+          )
+        })}
+      </div>
 
       <Barny size="small" pose={pose} message={message} />
 
