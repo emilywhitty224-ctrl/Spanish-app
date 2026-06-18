@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { XpWindow } from '../components/XpWindow'
 import { Barny } from '../components/Barny'
+import { DidYouKnow } from '../components/DidYouKnow'
 
 export function SplashScreen() {
   const navigate = useNavigate()
@@ -30,6 +31,8 @@ export function SplashScreen() {
           </div>
 
           <Barny size="medium" />
+
+          <DidYouKnow />
 
           <button
             className="xp-btn xp-btn-large xp-btn-primary"

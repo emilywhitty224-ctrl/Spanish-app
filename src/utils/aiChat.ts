@@ -1,4 +1,5 @@
 import type { AiProvider } from '../store/useStore'
+import { CULTURE_DIGEST } from '../data/culture'
 
 export interface AiTurn {
   /** 'barny' = AI line, 'user' = learner's typed Spanish. */
@@ -35,6 +36,9 @@ Rules:
   - "bad"   = grammatically wrong, off-topic, or doesn't answer
 - If "okay" or "bad", provide a brief English explanation and a Spanish correction.
 - On the very first turn (no user message yet), omit "feedback".
+- If the learner asks about Valencia or Spain (history, culture, places, food, festivals), you may answer using the facts below. Keep it to 1–2 simple A2 sentences in Spanish — never lecture. Only use these facts; if you don't know, say so simply.
+Facts you know:
+${CULTURE_DIGEST}
 - Always respond with ONLY a JSON object matching this schema, no prose, no markdown fences:
 {
   "barnySpanish": string,

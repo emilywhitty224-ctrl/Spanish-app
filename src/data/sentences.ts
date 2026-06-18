@@ -6,6 +6,8 @@
 // exactly once (the cloze mode removes it). `altAccepted` lets the dictation
 // mode forgive minor differences (e.g. with/without "yo").
 
+import { cultureSentences } from './culture'
+
 export interface Sentence {
   id: string
   spanish: string
@@ -15,7 +17,7 @@ export interface Sentence {
   tags: string[]
 }
 
-export const SENTENCES: Sentence[] = [
+const SENTENCE_BANK: Sentence[] = [
   // ── Opinions: gusta / gustan ─────────────────────────────
   { id: 's01', spanish: 'Me gusta el café',          english: 'I like coffee',           blank: 'gusta',  tags: ['opinions', 'drinks'] },
   { id: 's02', spanish: 'Me gusta la sangría',       english: 'I like sangria',          blank: 'gusta',  tags: ['opinions', 'drinks'] },
@@ -86,6 +88,11 @@ export const SENTENCES: Sentence[] = [
   { id: 's49', spanish: 'Juego al fútbol los domingos',          english: 'I play football on Sundays',          blank: 'Juego',  tags: ['hobbies'] },
   { id: 's50', spanish: 'Soy vegetariano',                       english: 'I am vegetarian',                     blank: 'vegetariano', tags: ['drinks'] },
 ]
+
+// The full bank = the themed sentences above plus the culture/history facts
+// (tagged 'culture' + region), so the cloze/dictation/word-order modes practise
+// Spanish + Spain/Valencia history together.
+export const SENTENCES: Sentence[] = [...SENTENCE_BANK, ...cultureSentences()]
 
 /** Pick a random distinct subset of n sentences. */
 export function pickSentences(n: number, filterTag?: string): Sentence[] {
