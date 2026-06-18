@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { RevisionGame } from '../components/RevisionGame'
 import { useVocab } from '../data/useVocab'
 import { useStore } from '../store/useStore'
@@ -14,6 +14,9 @@ export function WeeklySprint() {
   const setIncludeBasics = useStore((s) => s.setIncludeBasicsInSprint)
   const culture = useStore((s) => s.cultureInSprint)
   const setCulture = useStore((s) => s.setCultureInSprint)
+  // Deck options stay tucked away so Barny owns the screen; auto-open only if
+  // the learner already has a non-default deck on.
+  const [showOpts, setShowOpts] = useState(includeBasics || culture !== 'off')
 
   // The Weekly Sprint drills the newest lesson — optionally folding in the
   // Basics words, plus the Spain/Valencia culture deck which can either be
@@ -56,40 +59,59 @@ export function WeeklySprint() {
       exitTo="/"
       onWordResult={reviewWord}
       headerSlot={
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap', fontSize: '11px', color: '#888', opacity: 0.85, padding: '2px 0 6px' }}>
-          <label
+        <div style={{ fontSize: '11px', color: '#777', padding: '2px 0 4px' }}>
+          <button
+            onClick={() => setShowOpts((v) => !v)}
             style={{
-              display: 'inline-flex', alignItems: 'center', gap: '5px',
-              cursor: culture === 'only' ? 'default' : 'pointer',
-              color: culture === 'only' ? '#555' : '#888',
+              background: 'none', border: 'none', color: '#777', cursor: 'pointer',
+              fontSize: '11px', padding: 0, fontFamily: 'inherit',
             }}
           >
-            <input
-              type="checkbox"
-              checked={includeBasics}
-              disabled={culture === 'only'}
-              onChange={(e) => setIncludeBasics(e.target.checked)}
-              style={{ transform: 'scale(0.85)' }}
-            />
-            + Basics
-          </label>
+            {showOpts ? '▾' : '▸'} Deck options
+            {!showOpts && (includeBasics || culture !== 'off') && (
+              <span style={{ color: 'var(--color-accent)', marginLeft: '6px' }}>
+                {[includeBasics && '+Basics', culture !== 'off' && `Culture: ${culture}`].filter(Boolean).join(' · ')}
+              </span>
+            )}
+          </button>
 
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ flexShrink: 0 }}>📜 Culture:</span>
-            <span style={{ display: 'inline-flex', gap: '3px' }}>
-              {cultureOptions.map((o) => (
-                <button
-                  key={o.id}
-                  title={`Spain & Valencia history — ${o.label}`}
-                  className={`xp-btn${culture === o.id ? ' xp-btn-primary' : ''}`}
-                  style={{ fontSize: '10px', minWidth: 'auto', padding: '2px 8px' }}
-                  onClick={() => setCulture(o.id)}
-                >
-                  {o.label}
-                </button>
-              ))}
-            </span>
-          </span>
+          {showOpts && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap', marginTop: '6px', opacity: 0.9 }}>
+              <label
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: '5px',
+                  cursor: culture === 'only' ? 'default' : 'pointer',
+                  color: culture === 'only' ? '#555' : '#888',
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={includeBasics}
+                  disabled={culture === 'only'}
+                  onChange={(e) => setIncludeBasics(e.target.checked)}
+                  style={{ transform: 'scale(0.85)' }}
+                />
+                + Basics
+              </label>
+
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: '#888' }}>
+                <span style={{ flexShrink: 0 }}>📜 Culture:</span>
+                <span style={{ display: 'inline-flex', gap: '3px' }}>
+                  {cultureOptions.map((o) => (
+                    <button
+                      key={o.id}
+                      title={`Spain & Valencia history — ${o.label}`}
+                      className={`xp-btn${culture === o.id ? ' xp-btn-primary' : ''}`}
+                      style={{ fontSize: '10px', minWidth: 'auto', padding: '2px 8px' }}
+                      onClick={() => setCulture(o.id)}
+                    >
+                      {o.label}
+                    </button>
+                  ))}
+                </span>
+              </span>
+            </div>
+          )}
         </div>
       }
     />
