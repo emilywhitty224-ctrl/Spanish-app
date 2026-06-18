@@ -642,6 +642,11 @@ export function Lesson() {
                 onChange={(e) => setDrillTyped(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') submitDrill() }}
                 autoFocus
+                autoCapitalize="off"
+                autoCorrect="off"
+                autoComplete="off"
+                spellCheck={false}
+                inputMode="text"
                 style={{
                   flex: 1, padding: '8px 10px', fontSize: '14px',
                   background: '#1a1a1a',
@@ -655,7 +660,7 @@ export function Lesson() {
                   disabled={drillFeedback !== null}
                   title="Speak in Spanish"
                   style={{
-                    minWidth: 'auto', padding: '4px 10px',
+                    minWidth: '44px', padding: '4px 10px',
                     border: `2px solid ${drillListening ? '#2196f3' : 'var(--color-accent)'}`,
                     color: drillListening ? '#2196f3' : undefined,
                   }}
@@ -785,6 +790,11 @@ export function Lesson() {
                                   value={clozeTyped}
                                   onChange={(e) => setClozeTyped(e.target.value)}
                                   onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); submitCloze() } }}
+                                  autoCapitalize="off"
+                                  autoCorrect="off"
+                                  autoComplete="off"
+                                  spellCheck={false}
+                                  inputMode="text"
                                   style={{ flex: 1, padding: '4px 6px', fontSize: '12px', background: '#1a1a1a', border: '1px solid var(--color-accent)', borderRadius: '3px', color: '#fff', outline: 'none' }}
                                 />
                                 <button className="xp-btn xp-btn-primary" style={{ fontSize: '11px' }} onClick={submitCloze} disabled={!clozeTyped.trim()}>Check</button>
@@ -820,6 +830,11 @@ export function Lesson() {
                 placeholder={chatListening ? '🎤 Listening… (say "punto" / "coma")' : 'Escribe tu respuesta…'}
                 onChange={(e) => setDraft(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat() } }}
+                autoCapitalize="off"
+                autoCorrect="off"
+                autoComplete="off"
+                spellCheck={false}
+                inputMode="text"
                 style={{
                   flex: 1, padding: '8px 10px', fontSize: '13px',
                   background: '#1a1a1a',
@@ -833,7 +848,7 @@ export function Lesson() {
                   disabled={chatLoading}
                   title="Speak in Spanish"
                   style={{
-                    minWidth: 'auto', padding: '4px 10px',
+                    minWidth: '44px', padding: '4px 10px',
                     border: `2px solid ${chatListening ? '#2196f3' : 'var(--color-accent)'}`,
                     color: chatListening ? '#2196f3' : undefined,
                   }}

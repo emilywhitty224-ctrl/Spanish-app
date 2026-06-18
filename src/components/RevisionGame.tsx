@@ -1001,6 +1001,11 @@ export function RevisionGame({ title, icon, vocab: allVocab, deckLabel, exitTo, 
                     value={sentTyped}
                     disabled={sentFeedback !== null}
                     placeholder={dictListening ? '🎤 Listening… (say "punto" / "coma" / "interrogación")' : 'Type the Spanish sentence…'}
+                    autoCapitalize="off"
+                    autoCorrect="off"
+                    autoComplete="off"
+                    spellCheck={false}
+                    inputMode="text"
                     onChange={(e) => setSentTyped(e.target.value)}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' && sentFeedback === null && sentTyped.trim()) {
@@ -1025,7 +1030,7 @@ export function RevisionGame({ title, icon, vocab: allVocab, deckLabel, exitTo, 
                       disabled={sentFeedback !== null}
                       title={dictListening ? 'Stop listening — say "punto", "coma", "interrogación" for punctuation' : 'Speak the Spanish sentence — say "punto", "coma", "interrogación" for punctuation'}
                       style={{
-                        minWidth: 'auto', padding: '4px 10px',
+                        minWidth: '44px', padding: '4px 10px',
                         border: `2px solid ${dictListening ? '#2196f3' : 'var(--color-accent)'}`,
                         color: dictListening ? '#2196f3' : undefined,
                       }}
@@ -1575,6 +1580,11 @@ function FillInput({ typed, setTyped, feedback, answer, placeholder, hint, onSub
           value={typed}
           disabled={feedback !== null}
           placeholder={listening ? '🎤 Listening…' : placeholder}
+          autoCapitalize="off"
+          autoCorrect="off"
+          autoComplete="off"
+          spellCheck={false}
+          inputMode="text"
           onChange={(e) => setTyped(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') onSubmit() }}
           style={{
@@ -1592,7 +1602,7 @@ function FillInput({ typed, setTyped, feedback, answer, placeholder, hint, onSub
             onClick={toggleMic}
             title={listening ? 'Stop listening' : 'Speak your answer'}
             style={{
-              minWidth: 'auto', padding: '4px 10px',
+              minWidth: '44px', padding: '4px 10px',
               border: `2px solid ${listening ? '#2196f3' : 'var(--color-accent)'}`,
               color: listening ? '#2196f3' : undefined,
             }}

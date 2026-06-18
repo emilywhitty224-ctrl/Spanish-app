@@ -142,7 +142,7 @@ const LINES: { es: string; en: string }[] = [
 ]
 
 // How many times you must write the line correctly to finish.
-const LINES_TARGET = 5
+const LINES_TARGET = 2
 
 // Distinct special chars in a target, in order of first appearance.
 function hintsFor(target: string): string[] {
@@ -549,6 +549,8 @@ function DrillPanel() {
         spellCheck={false}
         autoCapitalize="off"
         autoCorrect="off"
+        autoComplete="off"
+        inputMode="text"
         placeholder="Type here…"
         onChange={(e) => {
           const v = e.target.value
@@ -816,6 +818,8 @@ function LinesGame() {
             spellCheck={false}
             autoCapitalize="off"
             autoCorrect="off"
+            autoComplete="off"
+            inputMode="text"
             placeholder="Write the line here…"
             onChange={(e) => {
               setInput(e.target.value)

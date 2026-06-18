@@ -166,6 +166,11 @@ export function AddWords() {
                 placeholder={'e.g.\nel mercado - market\ncomprar = to buy\n¿cuánto cuesta? how much is it'}
                 onChange={(e) => setNotes(e.target.value)}
                 rows={6}
+                autoCapitalize="off"
+                autoCorrect="off"
+                autoComplete="off"
+                spellCheck={false}
+                inputMode="text"
                 style={{
                   ...inputStyle, resize: 'vertical', minHeight: '90px',
                   fontFamily: 'var(--font-ui)', lineHeight: 1.4,
@@ -227,6 +232,11 @@ export function AddWords() {
                 placeholder="e.g. el gato"
                 onChange={(e) => setSpanish(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') handleCreate() }}
+                autoCapitalize="off"
+                autoCorrect="off"
+                autoComplete="off"
+                spellCheck={false}
+                inputMode="text"
               />
             </label>
             <label style={{ fontSize: '12px', color: '#888' }}>

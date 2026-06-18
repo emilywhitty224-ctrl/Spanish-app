@@ -12,6 +12,32 @@
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+  /* Kill the grey flash iOS/Android paint over tapped elements — we provide
+     our own deliberate :active feedback instead (see TOUCH ERGONOMICS below). */
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ============================================
+   TOUCH ERGONOMICS (mobile-first, applies everywhere)
+   ============================================ */
+/* Buttons and titlebars shouldn't select text on long-press, and shouldn't
+   wait for the 300ms double-tap-zoom delay. Reading content and inputs keep
+   normal text selection (see rule below). */
+.xp-btn,
+.xp-titlebar,
+.xp-titlebar-btn,
+.xp-mode-card {
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
+}
+
+/* Keep text selectable where the user actually reads or types. */
+input,
+textarea,
+.xp-content p {
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 body {
@@ -61,9 +87,10 @@ body {
   }
 
   .xp-titlebar-btn {
-    width: 30px;
-    height: 30px;
-    font-size: 14px;
+    /* 44x44 minimum tap target on touch screens. */
+    width: 44px;
+    height: 44px;
+    font-size: 16px;
   }
 
   .xp-content {
@@ -73,6 +100,9 @@ body {
   .xp-btn {
     font-size: 15px;
     padding: 10px 20px;
+    /* Guarantee a 44px-tall thumb target. Icon-only buttons that shrink their
+       width with an inline minWidth also set a 44px width explicitly. */
+    min-height: 44px;
   }
 
   .xp-btn-large {
@@ -83,7 +113,19 @@ body {
 
   .xp-mode-card {
     padding: 14px;
+    min-height: 44px;
   }
+}
+
+/* Deliberate press feedback (replaces the suppressed grey tap flash). The
+   retro buttons already invert their bevels on :active; titlebar/icon buttons
+   and mode cards get a brightness dip so a tap always registers visibly. */
+.xp-titlebar-btn:active {
+  filter: brightness(0.82);
+}
+
+.xp-mode-card:active {
+  filter: brightness(0.94);
 }
 
 @media (min-width: 768px) {

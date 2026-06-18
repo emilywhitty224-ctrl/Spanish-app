@@ -280,6 +280,11 @@ export function FreeChat() {
                 disabled={loading}
                 onChange={(e) => setDraft(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }}
+                autoCapitalize="off"
+                autoCorrect="off"
+                autoComplete="off"
+                spellCheck={false}
+                inputMode="text"
                 style={{
                   flex: 1, padding: '8px 10px', fontSize: '13px',
                   fontFamily: 'var(--font-ui)', background: '#1a1a1a',
@@ -293,7 +298,7 @@ export function FreeChat() {
                   disabled={loading}
                   title={listening ? 'Stop listening — say "punto", "coma", "interrogación" for punctuation' : 'Speak in Spanish — say "punto", "coma", "interrogación" for punctuation'}
                   style={{
-                    minWidth: 'auto', padding: '4px 10px',
+                    minWidth: '44px', padding: '4px 10px',
                     border: `2px solid ${listening ? '#2196f3' : 'var(--color-accent)'}`,
                     color: listening ? '#2196f3' : undefined,
                   }}

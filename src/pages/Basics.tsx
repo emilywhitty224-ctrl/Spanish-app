@@ -658,6 +658,11 @@ function NumberChallenge() {
           disabled={feedback !== null}
           placeholder={listening ? '🎤 Listening…' : 'Type in Spanish…'}
           autoFocus
+          autoCapitalize="off"
+          autoCorrect="off"
+          autoComplete="off"
+          spellCheck={false}
+          inputMode="text"
           onChange={(e) => setTyped(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') submit() }}
           style={{
@@ -673,7 +678,7 @@ function NumberChallenge() {
             disabled={feedback !== null}
             title="Speak in Spanish"
             style={{
-              minWidth: 'auto', padding: '4px 10px',
+              minWidth: '44px', padding: '4px 10px',
               border: `2px solid ${listening ? '#2196f3' : 'var(--color-accent)'}`,
               color: listening ? '#2196f3' : undefined,
             }}
