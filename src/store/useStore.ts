@@ -2,7 +2,6 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { VocabularyItem } from '../types/vocabulary'
 
-export type Theme = 'WindowsXP' | 'Space' | 'Dinosaurs' | 'Sharks'
 export type AiProvider = 'gemini' | 'anthropic'
 
 // Difficulty band: 1 = starter, 2 = core, 3 = advanced. Mirrors the optional
@@ -135,7 +134,7 @@ function mergeSrs(all: Record<string, SrsEntry>[]): Record<string, SrsEntry> {
 }
 
 // The shared learning data that syncs to Google Drive. Device preferences
-// (theme, voice) are intentionally excluded.
+// (voice, etc.) are intentionally excluded.
 export interface SyncSnapshot {
   version: number
   updatedAt: string // ISO timestamp
@@ -174,7 +173,6 @@ export function migrateSnapshot(raw: any): SyncSnapshot {
 }
 
 interface AppState {
-  activeTheme: Theme
   voiceURI: string | null
   speechRate: number
   aiProvider: AiProvider
@@ -186,7 +184,6 @@ interface AppState {
   customWords: VocabularyItem[]
   srs: Record<string, SrsEntry>
   difficulty: DifficultySettings
-  setActiveTheme: (theme: Theme) => void
   setVoiceURI: (uri: string | null) => void
   setSpeechRate: (rate: number) => void
   setAiProvider: (provider: AiProvider) => void
@@ -209,7 +206,6 @@ interface AppState {
 export const useStore = create<AppState>()(
   persist(
     (set, get) => ({
-      activeTheme: 'WindowsXP',
       voiceURI: null,
       speechRate: 0.9,
       aiProvider: 'gemini',
@@ -222,7 +218,6 @@ export const useStore = create<AppState>()(
       srs: {},
       difficulty: starterDifficulty(),
 
-      setActiveTheme: (theme) => set({ activeTheme: theme }),
       setVoiceURI: (uri) => set({ voiceURI: uri }),
       setSpeechRate: (rate) => set({ speechRate: rate }),
       setAiProvider: (provider) => set({ aiProvider: provider }),

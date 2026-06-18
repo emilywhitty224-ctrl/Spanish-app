@@ -1,6 +1,5 @@
 import { useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { useStore } from './store/useStore'
 import { startAutoSync, useSync } from './sync/useSync'
 import { SplashScreen } from './pages/SplashScreen'
 import { Dashboard } from './pages/Dashboard'
@@ -20,12 +19,6 @@ import { ReconnectBanner } from './components/ReconnectBanner'
 import './index.css'
 
 function AppShell() {
-  const { activeTheme } = useStore()
-
-  useEffect(() => {
-    document.documentElement.setAttribute('data-theme', activeTheme)
-  }, [activeTheme])
-
   useEffect(() => {
     startAutoSync()
     // If we connected before, silently grab a fresh token (no popup) so the

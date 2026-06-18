@@ -1,23 +1,14 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../store/useStore'
-import type { Theme } from '../store/useStore'
 import { XpWindow } from '../components/XpWindow'
 import { speak, speechSupported, getSpanishVoices, onVoicesReady } from '../utils/speak'
 import { useSync } from '../sync/useSync'
 import { initGoogle, driveConfigured } from '../sync/googleDrive'
 
-const THEMES: { id: Theme; label: string }[] = [
-  { id: 'WindowsXP', label: 'Classic' },
-  { id: 'Space', label: 'Space' },
-  { id: 'Dinosaurs', label: 'Dinosaurs' },
-  { id: 'Sharks', label: 'Sharks' },
-]
-
 export function Settings() {
   const navigate = useNavigate()
   const {
-    activeTheme, setActiveTheme,
     voiceURI, setVoiceURI,
     speechRate, setSpeechRate,
     aiProvider, setAiProvider,
@@ -36,23 +27,6 @@ export function Settings() {
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', padding: '8px' }}>
       <XpWindow title="Settings" icon="⚙️" width="min(560px, 100%)" onClose={() => navigate('/dashboard')} style={{ flex: 1, maxHeight: 'none' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-
-          {/* Theme */}
-          <section>
-            <SectionTitle>Theme</SectionTitle>
-            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-              {THEMES.map((t) => (
-                <button
-                  key={t.id}
-                  className={`xp-btn${activeTheme === t.id ? ' xp-btn-primary' : ''}`}
-                  style={{ fontSize: '12px', minWidth: 'auto', padding: '6px 14px' }}
-                  onClick={() => setActiveTheme(t.id)}
-                >
-                  {t.label}
-                </button>
-              ))}
-            </div>
-          </section>
 
           {/* Voice */}
           <section>
