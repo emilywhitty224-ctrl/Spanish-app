@@ -76,7 +76,6 @@ export const CULTURE_FACTS: CultureFact[] = [
   { id: 'va18', region: 'valencia', year: 1998, spanish: 'La Ciudad de las Artes parece un esqueleto blanco gigante', english: 'The City of Arts looks like a giant white skeleton', blank: 'esqueleto' },
   { id: 'va19', region: 'valencia', year: 2003, spanish: 'Valencia tiene el acuario más grande de Europa', english: 'Valencia has the biggest aquarium in Europe', blank: 'acuario' },
   { id: 'va20', region: 'valencia', year: 0,    spanish: 'En Valencia mucha gente habla valenciano y también español', english: 'In Valencia many people speak Valencian and also Spanish', blank: 'valenciano' },
-  { id: 'va21', region: 'valencia', year: 2024, spanish: 'En 2024 una gran tormenta, la DANA, causó terribles inundaciones', english: 'In 2024 a huge storm, the DANA, caused terrible floods', blank: 'tormenta' },
 ]
 
 /** Compare facts chronologically (used if you ever want a timeline order). */

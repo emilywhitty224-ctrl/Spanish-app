@@ -32,7 +32,7 @@ const GROUPS: Record<RegionId, { label: string; icon: string; blurb: string; fac
   valencia: {
     label: 'Valencia — 1900 a hoy',
     icon: '🍊',
-    blurb: 'Modern Valencia: oranges, Las Fallas, the Turia flood, Calatrava and the DANA.',
+    blurb: 'Roman roots, the Holy Grail, real paella, Las Fallas, the moved river and Calatrava.',
     facts: CULTURE_FACTS.filter((f) => f.region === 'valencia').sort(byYear),
   },
 }
