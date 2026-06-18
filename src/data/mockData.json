@@ -718,5 +718,145 @@
     "mastery_level": 0,
     "next_review_date": "2026-06-04T00:00:00.000Z",
     "beginner_safe": true
+  },
+  {
+    "id": "073",
+    "spanish_word": "cocinar",
+    "english_translation": "to cook",
+    "type": "verb",
+    "tags": ["hobbies"],
+    "mastery_level": 0,
+    "next_review_date": "2026-05-28T00:00:00.000Z",
+    "beginner_safe": true
+  },
+  {
+    "id": "074",
+    "spanish_word": "dibujar",
+    "english_translation": "to draw",
+    "type": "verb",
+    "tags": ["hobbies"],
+    "mastery_level": 0,
+    "next_review_date": "2026-05-28T00:00:00.000Z",
+    "beginner_safe": true
+  },
+  {
+    "id": "075",
+    "spanish_word": "pintar",
+    "english_translation": "to paint",
+    "type": "verb",
+    "tags": ["hobbies"],
+    "mastery_level": 0,
+    "next_review_date": "2026-05-28T00:00:00.000Z",
+    "beginner_safe": true
+  },
+  {
+    "id": "076",
+    "spanish_word": "cantar",
+    "english_translation": "to sing",
+    "type": "verb",
+    "tags": ["hobbies"],
+    "mastery_level": 0,
+    "next_review_date": "2026-05-28T00:00:00.000Z",
+    "beginner_safe": true
+  },
+  {
+    "id": "077",
+    "spanish_word": "correr",
+    "english_translation": "to run",
+    "type": "verb",
+    "tags": ["hobbies"],
+    "mastery_level": 0,
+    "next_review_date": "2026-05-28T00:00:00.000Z",
+    "beginner_safe": true
+  },
+  {
+    "id": "078",
+    "spanish_word": "viajar",
+    "english_translation": "to travel",
+    "type": "verb",
+    "tags": ["hobbies"],
+    "mastery_level": 0,
+    "next_review_date": "2026-05-28T00:00:00.000Z",
+    "beginner_safe": true
+  },
+  {
+    "id": "079",
+    "spanish_word": "montar en bici",
+    "english_translation": "to ride a bike",
+    "type": "phrase",
+    "tags": ["hobbies"],
+    "mastery_level": 0,
+    "next_review_date": "2026-05-28T00:00:00.000Z",
+    "beginner_safe": true
+  },
+  {
+    "id": "080",
+    "spanish_word": "ver la tele",
+    "english_translation": "to watch TV",
+    "type": "phrase",
+    "tags": ["hobbies"],
+    "mastery_level": 0,
+    "next_review_date": "2026-05-28T00:00:00.000Z",
+    "beginner_safe": true
+  },
+  {
+    "id": "081",
+    "spanish_word": "ver películas",
+    "english_translation": "to watch films",
+    "type": "phrase",
+    "tags": ["hobbies"],
+    "mastery_level": 0,
+    "next_review_date": "2026-05-28T00:00:00.000Z",
+    "beginner_safe": true
+  },
+  {
+    "id": "082",
+    "spanish_word": "jugar a los videojuegos",
+    "english_translation": "to play video games",
+    "type": "phrase",
+    "tags": ["hobbies"],
+    "mastery_level": 0,
+    "next_review_date": "2026-05-28T00:00:00.000Z",
+    "beginner_safe": true
+  },
+  {
+    "id": "083",
+    "spanish_word": "tocar la guitarra",
+    "english_translation": "to play the guitar",
+    "type": "phrase",
+    "tags": ["hobbies"],
+    "mastery_level": 0,
+    "next_review_date": "2026-05-28T00:00:00.000Z",
+    "beginner_safe": true
+  },
+  {
+    "id": "084",
+    "spanish_word": "ir al gimnasio",
+    "english_translation": "to go to the gym",
+    "type": "phrase",
+    "tags": ["hobbies"],
+    "mastery_level": 0,
+    "next_review_date": "2026-05-28T00:00:00.000Z",
+    "beginner_safe": true
+  },
+  {
+    "id": "085",
+    "spanish_word": "hacer senderismo",
+    "english_translation": "to go hiking",
+    "type": "phrase",
+    "tags": ["hobbies"],
+    "mastery_level": 0,
+    "next_review_date": "2026-05-28T00:00:00.000Z",
+    "beginner_safe": true
+  },
+  {
+    "id": "086",
+    "spanish_word": "ir de compras",
+    "english_translation": "to go shopping",
+    "type": "phrase",
+    "tags": ["hobbies"],
+    "mastery_level": 0,
+    "next_review_date": "2026-05-28T00:00:00.000Z",
+    "beginner_safe": true
   }
 ]
