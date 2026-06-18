@@ -56,12 +56,12 @@ export function WeeklySprint() {
       exitTo="/"
       onWordResult={reviewWord}
       headerSlot={
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', padding: '8px 0', borderBottom: '1px solid var(--color-button-shadow)', marginBottom: '4px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap', fontSize: '11px', color: '#888', opacity: 0.85, padding: '2px 0 6px' }}>
           <label
             style={{
-              display: 'flex', alignItems: 'center', gap: '8px',
-              fontSize: '12px', color: culture === 'only' ? '#666' : '#bbb',
+              display: 'inline-flex', alignItems: 'center', gap: '5px',
               cursor: culture === 'only' ? 'default' : 'pointer',
+              color: culture === 'only' ? '#555' : '#888',
             }}
           >
             <input
@@ -69,32 +69,27 @@ export function WeeklySprint() {
               checked={includeBasics}
               disabled={culture === 'only'}
               onChange={(e) => setIncludeBasics(e.target.checked)}
+              style={{ transform: 'scale(0.85)' }}
             />
-            ➕ Also revise Basics words
+            + Basics
           </label>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#bbb' }}>
-            <span style={{ flexShrink: 0 }}>📜 Spain &amp; Valencia culture:</span>
-            <div style={{ display: 'flex', gap: '4px' }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{ flexShrink: 0 }}>📜 Culture:</span>
+            <span style={{ display: 'inline-flex', gap: '3px' }}>
               {cultureOptions.map((o) => (
                 <button
                   key={o.id}
+                  title={`Spain & Valencia history — ${o.label}`}
                   className={`xp-btn${culture === o.id ? ' xp-btn-primary' : ''}`}
-                  style={{ fontSize: '11px', minWidth: 'auto', padding: '3px 10px' }}
+                  style={{ fontSize: '10px', minWidth: 'auto', padding: '2px 8px' }}
                   onClick={() => setCulture(o.id)}
                 >
                   {o.label}
                 </button>
               ))}
-            </div>
-          </div>
-          <p style={{ fontSize: '11px', color: '#777', margin: 0 }}>
-            {culture === 'only'
-              ? 'Practising Spain & Valencia history on its own.'
-              : culture === 'mix'
-                ? 'History facts mixed in with your own words.'
-                : 'Turn on to learn Spanish through Spain & Valencia history.'}
-          </p>
+            </span>
+          </span>
         </div>
       }
     />
