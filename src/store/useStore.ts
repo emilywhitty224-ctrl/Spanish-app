@@ -12,6 +12,12 @@ export type DifficultyBand = 1 | 2 | 3
 // the app should offer the placement screen (self-select or diagnostic).
 export type Placement = 'scratch' | 'medium' | 'hard'
 
+// How the Spain/Valencia culture deck folds into the Weekly Sprint:
+//   'off'  — just the learner's own words (default)
+//   'mix'  — own words + culture facts in one deck
+//   'only' — culture facts on their own
+export type CultureSprintMode = 'off' | 'mix' | 'only'
+
 export interface DifficultySettings {
   placement: Placement | null
   unlockedBand: DifficultyBand // highest word band currently in play
@@ -180,6 +186,7 @@ interface AppState {
   skipWarmup: boolean
   strictAccents: boolean
   includeBasicsInSprint: boolean
+  cultureInSprint: CultureSprintMode
   stats: ProfileStats
   customWords: VocabularyItem[]
   srs: Record<string, SrsEntry>
@@ -191,6 +198,7 @@ interface AppState {
   setSkipWarmup: (skip: boolean) => void
   setStrictAccents: (strict: boolean) => void
   setIncludeBasicsInSprint: (include: boolean) => void
+  setCultureInSprint: (mode: CultureSprintMode) => void
   setPlacement: (placement: Placement) => void
   setDifficulty: (partial: Partial<DifficultySettings>) => void
   recordResult: (mode: string, correct: number, total: number) => void
@@ -213,6 +221,7 @@ export const useStore = create<AppState>()(
       skipWarmup: false,
       strictAccents: false,
       includeBasicsInSprint: false,
+      cultureInSprint: 'off',
       stats: emptyStats(),
       customWords: [],
       srs: {},
@@ -225,6 +234,7 @@ export const useStore = create<AppState>()(
       setSkipWarmup: (skip) => set({ skipWarmup: skip }),
       setStrictAccents: (strict) => set({ strictAccents: strict }),
       setIncludeBasicsInSprint: (include) => set({ includeBasicsInSprint: include }),
+      setCultureInSprint: (mode) => set({ cultureInSprint: mode }),
 
       setPlacement: (placement) =>
         set({ difficulty: { placement, ...PLACEMENT_DEFAULTS[placement] } }),

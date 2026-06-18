@@ -12,6 +12,7 @@
 // `spanish` (the cloze mode removes it).
 
 import type { Sentence } from './sentences'
+import type { VocabularyItem } from '../types/vocabulary'
 
 export interface CultureFact {
   id: string
@@ -93,6 +94,29 @@ export function cultureSentences(): Sentence[] {
     blank: f.blank,
     altAccepted: f.altAccepted,
     tags: ['culture', f.region],
+  }))
+}
+
+/**
+ * Map culture facts into VocabularyItem "cards" so the Weekly Sprint can drill
+ * them through the normal RevisionGame modes — on their own or mixed in with
+ * the learner's own words. Each fact becomes a phrase card (full Spanish
+ * sentence ↔ translation), tagged 'culture' + its region so the topic filter
+ * can split Spain vs Valencia. The id is namespaced 'culture:<id>' so SRS
+ * tracks these separately from real vocab and never collides with a real word.
+ */
+export function cultureVocab(region?: 'spain' | 'valencia'): VocabularyItem[] {
+  const pool = region ? CULTURE_FACTS.filter((f) => f.region === region) : CULTURE_FACTS
+  return pool.map((f): VocabularyItem => ({
+    id: `culture:${f.id}`,
+    spanish_word: f.spanish,
+    english_translation: f.english,
+    type: 'phrase',
+    tags: ['culture', f.region],
+    difficulty: 1,
+    mastery_level: 0,
+    next_review_date: '',
+    beginner_safe: true,
   }))
 }
 
