@@ -673,7 +673,7 @@ function LinesGame() {
   const [input, setInput] = useState('')
   const [done, setDone] = useState(0)
   const [wrong, setWrong] = useState(false)
-  const inputRef = useRef<HTMLInputElement>(null)
+  const inputRef = useRef<HTMLTextAreaElement>(null)
 
   // Stats: a finished set counts toward the streak, scored by first-try
   // accuracy (lines completed / submit attempts). recordedRef guards against
@@ -810,7 +810,9 @@ function LinesGame() {
 
       <Barny size="small" pose={pose} message={message} />
 
-      {/* The line to copy, with per-character feedback as you type. */}
+      {/* The line to copy, with per-character feedback as you type. Long lines
+          wrap (pre-wrap keeps the spaces; break-word stops a single long token
+          from overflowing) so the whole sentence stays on screen. */}
       <div style={{
         fontFamily: 'monospace',
         fontSize: '16px',
@@ -819,6 +821,9 @@ function LinesGame() {
         margin: '10px 0 4px',
         borderRadius: '4px',
         background: 'rgba(0,0,0,0.15)',
+        whiteSpace: 'pre-wrap',
+        overflowWrap: 'anywhere',
+        wordBreak: 'break-word',
       }}>
         {line.es.split('').map((ch, i) => {
           let color = '#888' // not yet typed
@@ -880,21 +885,26 @@ function LinesGame() {
         </>
       ) : (
         <>
-          <input
+          {/* A textarea (not an <input>) so long lines wrap and stay fully
+              visible instead of scrolling off the side; Enter still submits. */}
+          <textarea
             ref={inputRef}
             value={input}
+            rows={2}
             spellCheck={false}
             autoCapitalize="off"
             autoCorrect="off"
             autoComplete="off"
-            inputMode="text"
             placeholder="Write the line here…"
             onChange={(e) => {
               setInput(e.target.value)
               if (wrong) setWrong(false)
             }}
             onKeyDown={(e) => {
-              if (e.key === 'Enter') submit()
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                submit()
+              }
             }}
             onPaste={(e) => e.preventDefault()}
             style={{
@@ -907,6 +917,8 @@ function LinesGame() {
               border: `2px solid ${wrong ? '#e53935' : matches ? '#4caf50' : 'var(--color-button-shadow)'}`,
               background: 'rgba(255,255,255,0.06)',
               color: '#eee',
+              resize: 'none',
+              overflowWrap: 'anywhere',
             }}
           />
 
