@@ -36,7 +36,6 @@ export function SplashScreen() {
 
           <button
             className="xp-btn xp-btn-large xp-btn-primary"
-            style={{ marginTop: 'auto' }}
             onClick={() => navigate('/dashboard')}
           >
             ▶ Start Learning

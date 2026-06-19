@@ -74,7 +74,7 @@ body {
   /* Mobile bumps the uniform scale so everything (text, buttons, images,
      padding) grows together — not just the few font sizes tweaked below. */
   :root {
-    --ui-scale: 1.15;
+    --ui-scale: 1.26;
   }
 
   body {
