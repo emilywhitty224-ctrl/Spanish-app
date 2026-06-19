@@ -231,6 +231,7 @@ interface AppState {
   enrollCourse: () => void
   applyDiagnostic: (outcome: DiagOutcome) => void
   completeUnit: (unitId: string) => void
+  unlockAllUnits: () => void
   recordResult: (mode: string, correct: number, total: number) => void
   addCustomWord: (word: VocabularyItem) => void
   removeCustomWord: (id: string) => void
@@ -342,6 +343,25 @@ export const useStore = create<AppState>()(
             currentUnitId = null // course finished
           }
           return { course: { ...state.course, units, currentUnitId } }
+        }),
+
+      // Open every unit at once. Enrolls if needed; keeps any 'done' units done
+      // and just flips the locked ones to 'available'.
+      unlockAllUnits: () =>
+        set((state) => {
+          const prev = state.course.units
+          const units: Record<string, UnitStatus> = {}
+          A1_UNITS_ORDERED.forEach((u) => {
+            units[u.id] = prev[u.id] === 'done' ? 'done' : 'available'
+          })
+          return {
+            course: {
+              ...state.course,
+              enrolled: true,
+              currentUnitId: state.course.currentUnitId ?? A1_UNITS_ORDERED[0]?.id ?? null,
+              units,
+            },
+          }
         }),
 
       recordResult: (mode, correct, total) =>

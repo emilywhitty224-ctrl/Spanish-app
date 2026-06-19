@@ -19,10 +19,12 @@ export function A1Course() {
   const navigate = useNavigate()
   const course = useStore((s) => s.course)
   const enrollCourse = useStore((s) => s.enrollCourse)
+  const unlockAllUnits = useStore((s) => s.unlockAllUnits)
 
   const total = A1_UNITS_ORDERED.length
   const doneCount = A1_UNITS_ORDERED.filter((u) => course.units[u.id] === 'done').length
   const pct = total > 0 ? Math.round((doneCount / total) * 100) : 0
+  const lockedCount = A1_UNITS_ORDERED.filter((u, i) => (course.units[u.id] ?? (i === 0 ? 'available' : 'locked')) === 'locked').length
 
   // Not enrolled yet: offer the entry test or a fresh start.
   if (!course.enrolled) {
@@ -106,9 +108,23 @@ export function A1Course() {
           })}
         </div>
 
+        {lockedCount > 0 && (
+          <button
+            className="xp-btn"
+            style={{ fontSize: '11px', marginTop: '14px' }}
+            onClick={() => {
+              if (window.confirm(`Unlock all ${lockedCount} locked unit${lockedCount === 1 ? '' : 's'}? You can jump to any lesson, but completed units stay marked done.`)) {
+                unlockAllUnits()
+              }
+            }}
+            title="Open every unit so you can practise in any order"
+          >
+            🔓 Unlock all units
+          </button>
+        )}
         <button
           className="xp-btn"
-          style={{ fontSize: '11px', marginTop: '14px' }}
+          style={{ fontSize: '11px', marginTop: lockedCount > 0 ? '6px' : '14px' }}
           onClick={() => navigate('/course/entry-test')}
           title="Re-run the placement test"
         >
