@@ -1,6 +1,8 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { VocabularyItem } from '../types/vocabulary'
+import { A1_UNITS_ORDERED, a1UnitById, unitSeedIds } from '../data/a1Course'
+import type { DiagOutcome } from '../utils/diagnostic'
 
 export type AiProvider = 'gemini' | 'anthropic'
 
@@ -45,6 +47,26 @@ const starterDifficulty = (): DifficultySettings => ({
 const migratedDifficulty = (): DifficultySettings => ({
   placement: 'medium',
   ...PLACEMENT_DEFAULTS.medium,
+})
+
+// ── A1 course progress ──────────────────────────────────────────────────────
+export type UnitStatus = 'locked' | 'available' | 'in-progress' | 'done'
+
+export interface CourseState {
+  enrolled: boolean
+  diagnosticDone: boolean
+  currentUnitId: string | null
+  units: Record<string, UnitStatus> // unit id -> status
+}
+
+// Mastery seeded for the words of a unit the entry test marks as already known.
+const SEED_MASTERY = 3
+
+const emptyCourse = (): CourseState => ({
+  enrolled: false,
+  diagnosticDone: false,
+  currentUnitId: null,
+  units: {},
 })
 
 export interface ProfileStats {
@@ -148,12 +170,14 @@ export interface SyncSnapshot {
   customWords: VocabularyItem[]
   srs: Record<string, SrsEntry>
   difficulty: DifficultySettings
+  course: CourseState
 }
 
-export const SYNC_VERSION = 2
+export const SYNC_VERSION = 3
 
 // Bring any older Drive snapshot up to the current shape. v1 is keyed by
-// profile name; v2 is the flat single-learner shape with difficulty.
+// profile name; v2 is the flat single-learner shape with difficulty; v3 adds
+// the A1 course progress.
 export function migrateSnapshot(raw: any): SyncSnapshot {
   if (raw?.version >= 2) {
     return {
@@ -163,6 +187,7 @@ export function migrateSnapshot(raw: any): SyncSnapshot {
       customWords: raw.customWords ?? [],
       srs: raw.srs ?? {},
       difficulty: raw.difficulty ?? migratedDifficulty(),
+      course: raw.course ?? emptyCourse(),
     }
   }
   // v1 (or unknown): collapse the per-profile maps into one learner.
@@ -175,6 +200,7 @@ export function migrateSnapshot(raw: any): SyncSnapshot {
     customWords: raw?.customWords ?? [],
     srs: mergeSrs(Object.values(srsMap)),
     difficulty: migratedDifficulty(),
+    course: emptyCourse(),
   }
 }
 
@@ -191,6 +217,7 @@ interface AppState {
   customWords: VocabularyItem[]
   srs: Record<string, SrsEntry>
   difficulty: DifficultySettings
+  course: CourseState
   setVoiceURI: (uri: string | null) => void
   setSpeechRate: (rate: number) => void
   setAiProvider: (provider: AiProvider) => void
@@ -201,6 +228,9 @@ interface AppState {
   setCultureInSprint: (mode: CultureSprintMode) => void
   setPlacement: (placement: Placement) => void
   setDifficulty: (partial: Partial<DifficultySettings>) => void
+  enrollCourse: () => void
+  applyDiagnostic: (outcome: DiagOutcome) => void
+  completeUnit: (unitId: string) => void
   recordResult: (mode: string, correct: number, total: number) => void
   addCustomWord: (word: VocabularyItem) => void
   removeCustomWord: (id: string) => void
@@ -226,6 +256,7 @@ export const useStore = create<AppState>()(
       customWords: [],
       srs: {},
       difficulty: starterDifficulty(),
+      course: emptyCourse(),
 
       setVoiceURI: (uri) => set({ voiceURI: uri }),
       setSpeechRate: (rate) => set({ speechRate: rate }),
@@ -240,6 +271,78 @@ export const useStore = create<AppState>()(
         set({ difficulty: { placement, ...PLACEMENT_DEFAULTS[placement] } }),
       setDifficulty: (partial) =>
         set((state) => ({ difficulty: { ...state.difficulty, ...partial } })),
+
+      // Enroll without taking the test: first unit available, the rest locked.
+      enrollCourse: () =>
+        set((state) => {
+          if (state.course.enrolled) return {}
+          const units: Record<string, UnitStatus> = {}
+          A1_UNITS_ORDERED.forEach((u, i) => {
+            units[u.id] = i === 0 ? 'available' : 'locked'
+          })
+          return {
+            course: {
+              enrolled: true,
+              diagnosticDone: false,
+              currentUnitId: A1_UNITS_ORDERED[0]?.id ?? null,
+              units,
+            },
+          }
+        }),
+
+      // Apply entry-test results: mark known units done (seeding their words
+      // into SRS so the rest of the app benefits), open the frontier unit, lock
+      // the rest.
+      applyDiagnostic: (outcome) =>
+        set((state) => {
+          const units: Record<string, UnitStatus> = {}
+          for (const id of outcome.knownUnitIds) units[id] = 'done'
+          if (outcome.currentUnitId) units[outcome.currentUnitId] = 'available'
+          for (const id of outcome.lockedUnitIds) units[id] = 'locked'
+
+          const srs = { ...(state.srs ?? {}) }
+          for (const id of outcome.knownUnitIds) {
+            const unit = a1UnitById(id)
+            if (!unit) continue
+            for (const wordId of unitSeedIds(unit)) {
+              const prev = srs[wordId]
+              if (!prev || prev.mastery < SEED_MASTERY) {
+                srs[wordId] = {
+                  mastery: SEED_MASTERY,
+                  nextReview: addDays(SRS_INTERVALS[SEED_MASTERY]),
+                  seen: prev?.seen ?? 0,
+                  correct: prev?.correct ?? 0,
+                }
+              }
+            }
+          }
+
+          return {
+            srs,
+            course: {
+              enrolled: true,
+              diagnosticDone: true,
+              currentUnitId: outcome.currentUnitId,
+              units,
+            },
+          }
+        }),
+
+      // Mark a unit done and open the next locked unit in syllabus order.
+      completeUnit: (unitId) =>
+        set((state) => {
+          const units = { ...state.course.units, [unitId]: 'done' as UnitStatus }
+          const idx = A1_UNITS_ORDERED.findIndex((u) => u.id === unitId)
+          let currentUnitId = state.course.currentUnitId
+          const next = A1_UNITS_ORDERED[idx + 1]
+          if (next) {
+            if (units[next.id] !== 'done') units[next.id] = 'available'
+            currentUnitId = next.id
+          } else {
+            currentUnitId = null // course finished
+          }
+          return { course: { ...state.course, units, currentUnitId } }
+        }),
 
       recordResult: (mode, correct, total) =>
         set((state) => {
@@ -331,6 +434,7 @@ export const useStore = create<AppState>()(
           customWords: s.customWords,
           srs: s.srs,
           difficulty: s.difficulty,
+          course: s.course,
         }
       },
 
@@ -341,13 +445,14 @@ export const useStore = create<AppState>()(
           customWords: migrated.customWords,
           srs: migrated.srs,
           difficulty: migrated.difficulty,
+          course: migrated.course,
         })
       },
     }),
     {
       name: 'spanish-app-store',
-      version: 2,
-      // Migrate locally-persisted state from the old two-profile shape.
+      version: 3,
+      // Migrate locally-persisted state forward across schema versions.
       migrate: (persisted: any, fromVersion: number) => {
         if (!persisted) return persisted
         if (fromVersion < 2) {
@@ -357,6 +462,9 @@ export const useStore = create<AppState>()(
           persisted.srs = mergeSrs(Object.values(srsMap))
           persisted.difficulty = persisted.difficulty ?? migratedDifficulty()
           delete persisted.userProfile
+        }
+        if (fromVersion < 3) {
+          persisted.course = persisted.course ?? emptyCourse()
         }
         return persisted
       },

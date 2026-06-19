@@ -123,6 +123,17 @@ export function Dashboard() {
             <button
               className="xp-btn xp-btn-large"
               style={{ width: '100%', textAlign: 'left', padding: '12px 16px' }}
+              onClick={() => navigate('/course')}
+            >
+              <div style={{ fontSize: '16px', marginBottom: '4px' }}>📚 A1 Course</div>
+              <div style={{ fontSize: '12px', fontWeight: 'normal', color: '#444' }}>
+                Guided beginner syllabus — take the placement test, then work unit by unit
+              </div>
+            </button>
+
+            <button
+              className="xp-btn xp-btn-large"
+              style={{ width: '100%', textAlign: 'left', padding: '12px 16px' }}
               onClick={() => navigate('/campaign/long-haul')}
             >
               <div style={{ fontSize: '16px', marginBottom: '4px' }}>🧠 Campaign 2: The Long Haul</div>

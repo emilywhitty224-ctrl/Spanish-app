@@ -11,6 +11,8 @@ import { FreeChat } from './pages/FreeChat'
 import { Lesson } from './pages/Lesson'
 import { AddWords } from './pages/AddWords'
 import { Basics, BasicsPractice } from './pages/Basics'
+import { A1Course, A1Unit } from './pages/A1Course'
+import { EntryTest } from './pages/EntryTest'
 import { Placement } from './pages/Placement'
 import { Settings } from './pages/Settings'
 import { PreLessonBlitz } from './pages/PreLessonBlitz'
@@ -41,6 +43,9 @@ function AppShell() {
         <Route path="/add-words" element={<AddWords />} />
         <Route path="/basics" element={<Basics />} />
         <Route path="/basics/play" element={<BasicsPractice />} />
+        <Route path="/course" element={<A1Course />} />
+        <Route path="/course/entry-test" element={<EntryTest />} />
+        <Route path="/course/unit/:id" element={<A1Unit />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/pre-lesson-blitz" element={<PreLessonBlitz />} />
         <Route path="/keyboard-lab" element={<KeyboardLab />} />

@@ -974,6 +974,14 @@ export function RevisionGame({ title, icon, vocab: allVocab, deckLabel, exitTo, 
         {/* ── Listening dictation ── */}
         {phase === 'dictation' && sentQs[sentIndex] && (() => {
           const q = sentQs[sentIndex]
+          const submitSentence = () => {
+            if (sentFeedback !== null || !sentTyped.trim()) return
+            const verdict = checkAnswer(sentTyped, q.spanish)
+            const state = verdict === 'wrong' ? 'incorrect' : verdict
+            setSentFeedback(state)
+            if (state === 'correct') setTimeout(() => advanceSentence('correct'), 800)
+            else if (state === 'almost') setTimeout(() => advanceSentence('correct'), 1500)
+          }
           return (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', color: '#888' }}>
@@ -982,12 +990,16 @@ export function RevisionGame({ title, icon, vocab: allVocab, deckLabel, exitTo, 
                   <ModeIcon id="dictation" size={15} /> Dictation
                 </span>
               </div>
-              <div style={{
-                border: '2px solid var(--color-accent)', borderRadius: '4px',
-                padding: '20px', textAlign: 'center', background: 'rgba(255,255,255,0.03)',
-              }}>
+              <form
+                onSubmit={(e) => { e.preventDefault(); submitSentence() }}
+                style={{
+                  border: '2px solid var(--color-accent)', borderRadius: '4px',
+                  padding: '20px', textAlign: 'center', background: 'rgba(255,255,255,0.03)',
+                }}
+              >
                 <p style={{ fontSize: '11px', color: '#888', marginBottom: '12px' }}>Listen and type what you hear (Spanish):</p>
                 <button
+                  type="button"
                   className="xp-btn xp-btn-primary"
                   onClick={() => speakCycle(q.spanish)}
                   disabled={!speechSupported}
@@ -1006,16 +1018,8 @@ export function RevisionGame({ title, icon, vocab: allVocab, deckLabel, exitTo, 
                     autoComplete="off"
                     spellCheck={false}
                     inputMode="text"
+                    enterKeyHint="done"
                     onChange={(e) => setSentTyped(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && sentFeedback === null && sentTyped.trim()) {
-                        const verdict = checkAnswer(sentTyped, q.spanish)
-                        const state = verdict === 'wrong' ? 'incorrect' : verdict
-                        setSentFeedback(state)
-                        if (state === 'correct') setTimeout(() => advanceSentence('correct'), 800)
-                        else if (state === 'almost') setTimeout(() => advanceSentence('correct'), 1500)
-                      }
-                    }}
                     style={{
                       flex: 1, padding: '8px 10px', fontSize: '14px',
                       fontFamily: 'var(--font-ui)', background: '#1a1a1a',
@@ -1026,6 +1030,7 @@ export function RevisionGame({ title, icon, vocab: allVocab, deckLabel, exitTo, 
                   />
                   {recognitionSupported && (
                     <button
+                      type="button"
                       className={`xp-btn${dictListening ? ' mic-listening' : ''}`}
                       disabled={sentFeedback !== null}
                       title={dictListening ? 'Stop listening — say "punto", "coma", "interrogación" for punctuation' : 'Speak the Spanish sentence — say "punto", "coma", "interrogación" for punctuation'}
@@ -1079,25 +1084,19 @@ export function RevisionGame({ title, icon, vocab: allVocab, deckLabel, exitTo, 
                       Answer: <strong>{q.spanish}</strong>
                     </p>
                     <p style={{ fontSize: '12px', color: '#888', margin: '0 0 10px' }}>({q.english})</p>
-                    <button className="xp-btn xp-btn-primary" onClick={() => advanceSentence('incorrect')}>Next →</button>
+                    <button type="button" className="xp-btn xp-btn-primary" onClick={() => advanceSentence('incorrect')}>Next →</button>
                   </>
                 )}
                 {sentFeedback === null && (
                   <button
+                    type="submit"
                     className="xp-btn xp-btn-primary"
                     disabled={sentTyped.trim() === ''}
-                    onClick={() => {
-                      const verdict = checkAnswer(sentTyped, q.spanish)
-                      const state = verdict === 'wrong' ? 'incorrect' : verdict
-                      setSentFeedback(state)
-                      if (state === 'correct') setTimeout(() => advanceSentence('correct'), 800)
-                      else if (state === 'almost') setTimeout(() => advanceSentence('correct'), 1500)
-                    }}
                   >
                     Check ↵
                   </button>
                 )}
-              </div>
+              </form>
               <Barny message={barnyMsg} size="small" />
             </div>
           )
@@ -1573,7 +1572,10 @@ function FillInput({ typed, setTyped, feedback, answer, placeholder, hint, onSub
     listening ? '#2196f3' :
     'var(--color-accent)'
   return (
-    <div style={{ marginTop: '16px' }}>
+    <form
+      onSubmit={(e) => { e.preventDefault(); if (feedback === null) onSubmit() }}
+      style={{ marginTop: '16px' }}
+    >
       <div style={{ display: 'flex', gap: '6px', marginBottom: '10px' }}>
         <input
           type="text"
@@ -1585,8 +1587,8 @@ function FillInput({ typed, setTyped, feedback, answer, placeholder, hint, onSub
           autoComplete="off"
           spellCheck={false}
           inputMode="text"
+          enterKeyHint="done"
           onChange={(e) => setTyped(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter') onSubmit() }}
           style={{
             flex: 1, padding: '8px 10px', fontSize: '14px',
             fontFamily: 'var(--font-ui)', background: '#1a1a1a',
@@ -1597,6 +1599,7 @@ function FillInput({ typed, setTyped, feedback, answer, placeholder, hint, onSub
         />
         {recognitionSupported && speechLang && (
           <button
+            type="button"
             className={`xp-btn${listening ? ' mic-listening' : ''}`}
             disabled={feedback !== null}
             onClick={toggleMic}
@@ -1644,14 +1647,14 @@ function FillInput({ typed, setTyped, feedback, answer, placeholder, hint, onSub
               <p style={{ margin: '6px 0 0', lineHeight: 1.4 }}>{hint}</p>
             </details>
           )}
-          <button className="xp-btn xp-btn-primary" onClick={onNext}>Next →</button>
+          <button type="button" className="xp-btn xp-btn-primary" onClick={onNext}>Next →</button>
         </>
       )}
       {feedback === null && (
-        <button className="xp-btn xp-btn-primary" onClick={onSubmit} disabled={typed.trim() === ''}>
+        <button type="submit" className="xp-btn xp-btn-primary" disabled={typed.trim() === ''}>
           Check ↵
         </button>
       )}
-    </div>
+    </form>
   )
 }

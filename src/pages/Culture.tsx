@@ -423,41 +423,47 @@ function ClozeType({ region, facts }: { region: RegionId; facts: CultureFact[] }
       </div>
       <div style={{ fontSize: '12px', color: '#9bb3c9', fontStyle: 'italic', textAlign: 'center' }}>“{f.english}”</div>
 
-      <input
-        ref={inputRef}
-        value={typed}
-        disabled={verdict !== null}
-        autoFocus
-        spellCheck={false}
-        autoCapitalize="off"
-        autoCorrect="off"
-        autoComplete="off"
-        placeholder="Type the missing word…"
-        onChange={(e) => setTyped(e.target.value)}
-        onKeyDown={(e) => { if (e.key === 'Enter') submit() }}
-        style={{
-          padding: '8px 10px', fontSize: '15px', background: '#1a1a1a', color: '#fff',
-          border: `2px solid ${verdict === 'correct' ? '#4caf50' : verdict === 'almost' ? '#ffb300' : verdict === 'incorrect' ? '#e53935' : 'var(--color-accent)'}`,
-          borderRadius: '3px', outline: 'none', boxSizing: 'border-box',
-        }}
-      />
+      <form
+        onSubmit={(e) => { e.preventDefault(); if (verdict || typed.trim()) submit() }}
+        style={{ display: 'contents' }}
+      >
+        <input
+          ref={inputRef}
+          value={typed}
+          disabled={verdict !== null}
+          autoFocus
+          spellCheck={false}
+          autoCapitalize="off"
+          autoCorrect="off"
+          autoComplete="off"
+          placeholder="Type the missing word…"
+          inputMode="text"
+          enterKeyHint="done"
+          onChange={(e) => setTyped(e.target.value)}
+          style={{
+            padding: '8px 10px', fontSize: '15px', background: '#1a1a1a', color: '#fff',
+            border: `2px solid ${verdict === 'correct' ? '#4caf50' : verdict === 'almost' ? '#ffb300' : verdict === 'incorrect' ? '#e53935' : 'var(--color-accent)'}`,
+            borderRadius: '3px', outline: 'none', boxSizing: 'border-box',
+          }}
+        />
 
-      {verdict === 'correct' && <div style={{ fontSize: '13px', color: '#4caf50' }}>✓ ¡Correcto!</div>}
-      {verdict === 'almost' && <div style={{ fontSize: '13px', color: '#ffb300' }}>✓ Almost — it's <strong>{f.blank}</strong></div>}
-      {verdict === 'incorrect' && (
-        <div style={{ fontSize: '13px', color: '#e53935' }}>
-          ✗ <span style={{ textDecoration: 'line-through', opacity: 0.7 }}>{typed}</span> → <strong>{f.blank}</strong>
-        </div>
-      )}
-
-      <div style={{ display: 'flex', gap: '6px' }}>
-        {speechSupported && (
-          <button className="xp-btn" style={{ fontSize: '11px' }} onClick={() => speakCycle(f.spanish)}>🔊 Hear</button>
+        {verdict === 'correct' && <div style={{ fontSize: '13px', color: '#4caf50' }}>✓ ¡Correcto!</div>}
+        {verdict === 'almost' && <div style={{ fontSize: '13px', color: '#ffb300' }}>✓ Almost — it's <strong>{f.blank}</strong></div>}
+        {verdict === 'incorrect' && (
+          <div style={{ fontSize: '13px', color: '#e53935' }}>
+            ✗ <span style={{ textDecoration: 'line-through', opacity: 0.7 }}>{typed}</span> → <strong>{f.blank}</strong>
+          </div>
         )}
-        <button className="xp-btn xp-btn-primary" style={{ flex: 1 }} disabled={!verdict && !typed.trim()} onClick={submit}>
-          {verdict ? 'Next →' : 'Check'}
-        </button>
-      </div>
+
+        <div style={{ display: 'flex', gap: '6px' }}>
+          {speechSupported && (
+            <button type="button" className="xp-btn" style={{ fontSize: '11px' }} onClick={() => speakCycle(f.spanish)}>🔊 Hear</button>
+          )}
+          <button type="submit" className="xp-btn xp-btn-primary" style={{ flex: 1 }} disabled={!verdict && !typed.trim()}>
+            {verdict ? 'Next →' : 'Check'}
+          </button>
+        </div>
+      </form>
     </div>
   )
 }

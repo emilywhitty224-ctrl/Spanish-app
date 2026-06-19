@@ -652,7 +652,10 @@ function NumberChallenge() {
       </div>
 
       {/* Input row */}
-      <div style={{ display: 'flex', gap: '4px' }}>
+      <form
+        onSubmit={(e) => { e.preventDefault(); if (feedback || typed.trim()) submit() }}
+        style={{ display: 'flex', gap: '4px' }}
+      >
         <input
           value={typed}
           disabled={feedback !== null}
@@ -663,8 +666,8 @@ function NumberChallenge() {
           autoComplete="off"
           spellCheck={false}
           inputMode="text"
+          enterKeyHint="done"
           onChange={(e) => setTyped(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter') submit() }}
           style={{
             flex: 1, padding: '8px 10px', fontSize: '14px',
             background: '#1a1a1a',
@@ -674,6 +677,7 @@ function NumberChallenge() {
         />
         {recognitionSupported && (
           <button
+            type="button"
             className={`xp-btn${listening ? ' mic-listening' : ''}`}
             disabled={feedback !== null}
             title="Speak in Spanish"
@@ -697,10 +701,10 @@ function NumberChallenge() {
             }}
           >{listening ? '⏹' : '🎤'}</button>
         )}
-        <button className="xp-btn xp-btn-primary" disabled={!feedback && !typed.trim()} onClick={submit}>
+        <button type="submit" className="xp-btn xp-btn-primary" disabled={!feedback && !typed.trim()}>
           {feedback ? 'Next →' : 'Check'}
         </button>
-      </div>
+      </form>
 
       {micError && <div style={{ fontSize: '11px', color: '#ff9800' }}>🎤 {micError}</div>}
 

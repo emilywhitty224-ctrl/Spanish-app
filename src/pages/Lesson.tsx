@@ -634,19 +634,22 @@ export function Lesson() {
             <div style={{ fontSize: '22px', color: 'var(--color-accent)', textAlign: 'center', padding: '10px 0' }}>
               {word.english_translation}
             </div>
-            <div style={{ display: 'flex', gap: '4px' }}>
+            <form
+              onSubmit={(e) => { e.preventDefault(); if (drillFeedback || drillTyped.trim()) submitDrill() }}
+              style={{ display: 'flex', gap: '4px' }}
+            >
               <input
                 value={drillTyped}
                 disabled={drillFeedback !== null}
                 placeholder={drillListening ? '🎤 Listening…' : 'Type in Spanish…'}
                 onChange={(e) => setDrillTyped(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') submitDrill() }}
                 autoFocus
                 autoCapitalize="off"
                 autoCorrect="off"
                 autoComplete="off"
                 spellCheck={false}
                 inputMode="text"
+                enterKeyHint="done"
                 style={{
                   flex: 1, padding: '8px 10px', fontSize: '14px',
                   background: '#1a1a1a',
@@ -656,6 +659,7 @@ export function Lesson() {
               />
               {recognitionSupported && (
                 <button
+                  type="button"
                   className={`xp-btn${drillListening ? ' mic-listening' : ''}`}
                   disabled={drillFeedback !== null}
                   title="Speak in Spanish"
@@ -689,10 +693,10 @@ export function Lesson() {
                   }}
                 >{drillListening ? '⏹' : '🎤'}</button>
               )}
-              <button className="xp-btn xp-btn-primary" disabled={!drillFeedback && !drillTyped.trim()} onClick={submitDrill}>
+              <button type="submit" className="xp-btn xp-btn-primary" disabled={!drillFeedback && !drillTyped.trim()}>
                 {drillFeedback ? 'Next →' : 'Check'}
               </button>
-            </div>
+            </form>
             {drillMicError && <div style={{ fontSize: '11px', color: '#ff9800' }}>🎤 {drillMicError}</div>}
             {drillFeedback === 'correct' && (
               <div style={{ fontSize: '13px', color: '#4caf50' }}>✓ {word.spanish_word}</div>
@@ -784,21 +788,24 @@ export function Lesson() {
                               {cloze.after}
                             </div>
                             {clozeResult === null && (
-                              <div style={{ display: 'flex', gap: '4px' }}>
+                              <form
+                                onSubmit={(e) => { e.preventDefault(); if (clozeTyped.trim()) submitCloze() }}
+                                style={{ display: 'flex', gap: '4px' }}
+                              >
                                 <input
                                   autoFocus
                                   value={clozeTyped}
                                   onChange={(e) => setClozeTyped(e.target.value)}
-                                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); submitCloze() } }}
                                   autoCapitalize="off"
                                   autoCorrect="off"
                                   autoComplete="off"
                                   spellCheck={false}
                                   inputMode="text"
+                                  enterKeyHint="done"
                                   style={{ flex: 1, padding: '4px 6px', fontSize: '12px', background: '#1a1a1a', border: '1px solid var(--color-accent)', borderRadius: '3px', color: '#fff', outline: 'none' }}
                                 />
-                                <button className="xp-btn xp-btn-primary" style={{ fontSize: '11px' }} onClick={submitCloze} disabled={!clozeTyped.trim()}>Check</button>
-                              </div>
+                                <button type="submit" className="xp-btn xp-btn-primary" style={{ fontSize: '11px' }} disabled={!clozeTyped.trim()}>Check</button>
+                              </form>
                             )}
                             {clozeResult === 'correct' && (
                               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#4caf50' }}>
