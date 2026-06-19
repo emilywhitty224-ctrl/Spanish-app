@@ -41,8 +41,27 @@ function openChatPrompt(): string {
   return `Open free chat — no fixed setting. You are Barny chatting casually like a friend. On your very first turn, ask the learner an ice-breaker question about: ${topic}. After that, let the conversation drift wherever the learner takes it — react naturally, share little opinions, ask follow-up questions, change topic if they do. Keep it warm and curious; never lecture.`
 }
 
+// Builds a chat scenario that weaves the learner's OWN saved words into casual
+// conversation, using mostly basic Spanish, so they see their words in context.
+function myWordsPrompt(words: { spanish: string; english: string }[]): string {
+  // Cap the list so the prompt stays small; favour the most recently added.
+  const recent = words.slice(-60)
+  const list = recent.map((w) => `${w.spanish} (${w.english})`).join('; ')
+  return `Open, friendly chat. The GOAL is to help the learner practise THEIR OWN saved vocabulary in real conversation, so they see how their words slot into everyday sentences.
+
+The learner's saved words/phrases: ${list}
+
+Rules for this chat:
+- Build the conversation around these saved words. In most of your turns, naturally use one or two of them, and steer the topic so the learner is prompted to use them too — ask questions whose natural answer needs one of these words.
+- Apart from the saved words, use ONLY basic, high-frequency Spanish: common verbs (ser, estar, tener, querer, ir, gustar, hacer), articles, pronouns, numbers, and everyday connectors (y, pero, porque, también). Do not introduce other advanced or rare vocabulary.
+- If you genuinely need a word that is neither a saved word nor very basic, keep it to an absolute minimum.
+- On the very first turn, greet the learner and ask a simple question that invites them to use one of their saved words.
+- Keep each reply to 1–2 short sentences. Warm and encouraging; never lecture.`
+}
+
 const SCENARIOS: Scenario[] = [
   { id: 'open',     icon: '🎲', title: 'Open chat (random)',    prompt: '' },
+  { id: 'mywords',  icon: '🗂️', title: 'Practice my words',     prompt: '' },
   { id: 'cafe',     icon: '☕', title: 'Café in Valencia',     prompt: 'You are a waiter at a busy café in Valencia. The learner is ordering breakfast or a coffee.' },
   { id: 'flat',     icon: '🏠', title: 'Flat viewing',          prompt: 'You are a landlord showing a piso to a foreign tenant. Ask and answer questions about rent, bills, deposit.' },
   { id: 'tie',      icon: '🪪', title: 'TIE appointment',       prompt: 'You are a police officer processing a TIE/NIE appointment. Ask for documents (pasaporte, justificante, cita).' },
@@ -62,6 +81,7 @@ interface ChatTurn {
 export function FreeChat() {
   const navigate = useNavigate()
   const { aiProvider, aiApiKey } = useStore()
+  const customWords = useStore((s) => s.customWords)
 
   const [scenario, setScenario] = useState<Scenario | null>(null)
   const [turns, setTurns] = useState<ChatTurn[]>([])
@@ -79,7 +99,15 @@ export function FreeChat() {
 
   async function start(s: Scenario) {
     if (!aiApiKey) { setError('Paste an API key in Settings first.'); return }
-    const resolved: Scenario = s.id === 'open' ? { ...s, prompt: openChatPrompt() } : s
+    if (s.id === 'mywords' && customWords.length === 0) {
+      setError('No saved words yet — add some in Add Words first, then Barny can practise them with you.')
+      return
+    }
+    const resolved: Scenario =
+      s.id === 'open' ? { ...s, prompt: openChatPrompt() }
+      : s.id === 'mywords'
+        ? { ...s, prompt: myWordsPrompt(customWords.map((w) => ({ spanish: w.spanish_word, english: w.english_translation }))) }
+        : s
     setScenario(resolved)
     setTurns([])
     setError(null)
