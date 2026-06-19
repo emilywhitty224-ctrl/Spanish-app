@@ -7,7 +7,7 @@ import type { VocabularyItem } from '../types/vocabulary'
 
 export type CategoryId =
   | 'family' | 'numbers' | 'food' | 'hobbies' | 'colours' | 'greetings'
-  | 'days' | 'weather' | 'body' | 'places'
+  | 'days' | 'weather' | 'body' | 'places' | 'countries'
 
 export interface Entry {
   spanish: string
@@ -149,21 +149,49 @@ const FOOD: Entry[] = [
   { spanish: 'el cerdo', english: 'pork' },
   { spanish: 'el jamón', english: 'ham' },
   { spanish: 'el pescado', english: 'fish (to eat)' },
+  { spanish: 'las gambas', english: 'prawns / shrimp' },
+  { spanish: 'el atún', english: 'tuna' },
+  { spanish: 'la salchicha', english: 'sausage' },
+  { spanish: 'el pavo', english: 'turkey' },
   // Fruit & veg
   { spanish: 'la fruta', english: 'fruit' },
   { spanish: 'la manzana', english: 'apple' },
   { spanish: 'la naranja', english: 'orange' },
   { spanish: 'el plátano', english: 'banana' },
   { spanish: 'la fresa', english: 'strawberry' },
+  { spanish: 'la pera', english: 'pear' },
+  { spanish: 'la uva', english: 'grape' },
+  { spanish: 'el limón', english: 'lemon' },
+  { spanish: 'la sandía', english: 'watermelon' },
+  { spanish: 'la piña', english: 'pineapple' },
+  { spanish: 'el melocotón / el durazno', english: 'peach' },
+  { spanish: 'la verdura', english: 'vegetable' },
   { spanish: 'el tomate', english: 'tomato' },
   { spanish: 'la patata / la papa', english: 'potato' },
   { spanish: 'la cebolla', english: 'onion' },
   { spanish: 'el ajo', english: 'garlic' },
+  { spanish: 'la zanahoria', english: 'carrot' },
+  { spanish: 'la lechuga', english: 'lettuce' },
+  { spanish: 'el pimiento', english: 'pepper (vegetable)' },
+  { spanish: 'el champiñón / la seta', english: 'mushroom' },
+  { spanish: 'los guisantes', english: 'peas' },
+  // Desserts & sweets
+  { spanish: 'el postre', english: 'dessert' },
+  { spanish: 'el helado', english: 'ice cream' },
+  { spanish: 'el pastel / la tarta', english: 'cake' },
+  { spanish: 'el chocolate', english: 'chocolate' },
+  { spanish: 'la galleta', english: 'biscuit / cookie' },
   // Useful phrases
   { spanish: 'tengo hambre', english: 'I am hungry' },
   { spanish: 'tengo sed', english: 'I am thirsty' },
   { spanish: 'quisiera…', english: 'I would like…' },
+  { spanish: 'la carta / el menú', english: 'the menu' },
+  { spanish: '¿qué me recomienda?', english: 'what do you recommend?' },
+  { spanish: 'para llevar', english: 'to take away / to go' },
+  { spanish: 'soy vegetariano / vegetariana', english: 'I am vegetarian' },
+  { spanish: 'está delicioso', english: "it's delicious" },
   { spanish: 'la cuenta, por favor', english: 'the bill, please' },
+  { spanish: 'la propina', english: 'the tip' },
 ]
 
 const HOBBIES: Entry[] = [
@@ -427,6 +455,48 @@ const PLACES: Entry[] = [
   { spanish: '¿dónde está…?', english: 'where is…?' },
 ]
 
+const COUNTRIES: Entry[] = [
+  // Countries
+  { spanish: 'el país', english: 'country' },
+  { spanish: 'España', english: 'Spain' },
+  { spanish: 'México', english: 'Mexico' },
+  { spanish: 'Argentina', english: 'Argentina' },
+  { spanish: 'Colombia', english: 'Colombia' },
+  { spanish: 'Perú', english: 'Peru' },
+  { spanish: 'Chile', english: 'Chile' },
+  { spanish: 'Inglaterra', english: 'England' },
+  { spanish: 'el Reino Unido', english: 'the United Kingdom' },
+  { spanish: 'Irlanda', english: 'Ireland' },
+  { spanish: 'Escocia', english: 'Scotland' },
+  { spanish: 'Gales', english: 'Wales' },
+  { spanish: 'los Estados Unidos', english: 'the United States' },
+  { spanish: 'Francia', english: 'France' },
+  { spanish: 'Alemania', english: 'Germany' },
+  { spanish: 'Italia', english: 'Italy' },
+  { spanish: 'Portugal', english: 'Portugal' },
+  // Nationalities (masculine / feminine)
+  { spanish: 'español / española', english: 'Spanish' },
+  { spanish: 'mexicano / mexicana', english: 'Mexican' },
+  { spanish: 'argentino / argentina', english: 'Argentinian' },
+  { spanish: 'inglés / inglesa', english: 'English' },
+  { spanish: 'británico / británica', english: 'British' },
+  { spanish: 'irlandés / irlandesa', english: 'Irish' },
+  { spanish: 'estadounidense', english: 'American (US)', note: 'same form for masculine & feminine' },
+  { spanish: 'francés / francesa', english: 'French' },
+  { spanish: 'alemán / alemana', english: 'German' },
+  { spanish: 'italiano / italiana', english: 'Italian' },
+  // Languages & phrases
+  { spanish: 'el idioma / la lengua', english: 'language' },
+  { spanish: 'el español / el castellano', english: 'Spanish (the language)' },
+  { spanish: 'el inglés', english: 'English (the language)' },
+  { spanish: '¿de dónde eres?', english: 'where are you from? (informal)' },
+  { spanish: '¿de dónde es usted?', english: 'where are you from? (formal)' },
+  { spanish: 'soy de…', english: 'I am from…' },
+  { spanish: 'vivo en…', english: 'I live in…' },
+  { spanish: 'hablo español', english: 'I speak Spanish' },
+  { spanish: '¿hablas inglés?', english: 'do you speak English?' },
+]
+
 export const CATEGORIES: Category[] = [
   {
     id: 'family',
@@ -508,6 +578,14 @@ export const CATEGORIES: Category[] = [
     icon: '🏙️',
     blurb: 'Shops, buildings and places — and how to ask where something is.',
     entries: PLACES,
+  },
+  {
+    id: 'countries',
+    band: 2,
+    label: 'Countries & Nationalities',
+    icon: '🌍',
+    blurb: 'Countries, nationalities, languages — and how to say where you’re from.',
+    entries: COUNTRIES,
   },
 ]
 
