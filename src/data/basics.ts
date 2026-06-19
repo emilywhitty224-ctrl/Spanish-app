@@ -7,7 +7,7 @@ import type { VocabularyItem } from '../types/vocabulary'
 
 export type CategoryId =
   | 'family' | 'numbers' | 'food' | 'hobbies' | 'colours' | 'greetings'
-  | 'days' | 'weather' | 'body' | 'places' | 'countries'
+  | 'days' | 'weather' | 'body' | 'places' | 'countries' | 'adult'
 
 export interface Entry {
   spanish: string
@@ -497,6 +497,48 @@ const COUNTRIES: Entry[] = [
   { spanish: '¿hablas inglés?', english: 'do you speak English?' },
 ]
 
+// 18+ everyday Spanish: real slang, common swearing (with strength notes), and
+// practical sexual-health vocab. Ungated and always visible, but it only enters a
+// practice deck when the learner explicitly picks this topic.
+const ADULT: Entry[] = [
+  // Everyday slang (mostly Spain unless noted)
+  { spanish: 'guay', english: 'cool / great', note: 'Spain' },
+  { spanish: 'chido / padre', english: 'cool / great', note: 'Mexico' },
+  { spanish: 'molar', english: 'to be cool / to like', note: 'e.g. "me mola" = I love it (Spain)' },
+  { spanish: 'flipar', english: 'to freak out / be amazed' },
+  { spanish: 'el tío / la tía', english: 'guy / girl, mate, dude', note: 'informal, Spain' },
+  { spanish: 'el chaval / la chavala', english: 'kid / young person' },
+  { spanish: 'currar', english: 'to work', note: 'slang, Spain' },
+  { spanish: 'la pasta', english: 'money / cash', note: 'slang' },
+  { spanish: 'la resaca', english: 'hangover' },
+  { spanish: 'estar de coña', english: 'to be joking / kidding', note: 'informal' },
+  { spanish: '¿qué pasa? / ¿qué tal?', english: "what's up? / how's it going?" },
+  { spanish: 'vale', english: 'okay / alright', note: 'Spain' },
+  // Swearing & insults — register notes show strength
+  { spanish: 'mierda', english: 'shit / damn', note: 'vulgar; also "¡mierda!" as an exclamation' },
+  { spanish: 'joder', english: "f*** / damn it", note: 'very common interjection; vulgar' },
+  { spanish: 'coño', english: 'damn / bloody hell', note: 'vulgar exclamation, Spain' },
+  { spanish: 'hostia', english: 'bloody hell / wow', note: 'vulgar, Spain; surprise or anger' },
+  { spanish: 'cabrón / cabrona', english: 'bastard / jerk', note: 'strong insult; vulgar' },
+  { spanish: 'gilipollas', english: 'idiot / jerk', note: 'vulgar, Spain' },
+  { spanish: 'pendejo / pendeja', english: 'idiot / dumbass', note: 'vulgar, Mexico' },
+  { spanish: '¡vete a la mierda!', english: "f*** off / go to hell", note: 'very rude' },
+  { spanish: 'estar cabreado / cabreada', english: 'to be pissed off', note: 'informal' },
+  { spanish: 'maldito / maldita', english: 'damn / cursed', note: 'mild' },
+  // Sexual health & practical
+  { spanish: 'el sexo', english: 'sex' },
+  { spanish: 'el condón / el preservativo', english: 'condom' },
+  { spanish: 'los anticonceptivos', english: 'contraceptives' },
+  { spanish: 'la píldora', english: 'the (contraceptive) pill' },
+  { spanish: 'el lubricante', english: 'lubricant' },
+  { spanish: 'protegerse', english: 'to use protection / protect oneself' },
+  { spanish: 'la ITS', english: 'STI', note: 'infección de transmisión sexual' },
+  { spanish: 'hacerse una prueba', english: 'to get tested' },
+  { spanish: 'el embarazo', english: 'pregnancy' },
+  { spanish: '¿tienes condones?', english: 'do you have condoms?' },
+  { spanish: '¿dónde puedo comprar preservativos?', english: 'where can I buy condoms?' },
+]
+
 export const CATEGORIES: Category[] = [
   {
     id: 'family',
@@ -586,6 +628,14 @@ export const CATEGORIES: Category[] = [
     icon: '🌍',
     blurb: 'Countries, nationalities, languages — and how to say where you’re from.',
     entries: COUNTRIES,
+  },
+  {
+    id: 'adult',
+    band: 1,
+    label: 'Slang & Adult Topics (18+) 🔞',
+    icon: '🔞',
+    blurb: '18+ only. Real slang, common swearing (with strength notes), and practical sexual-health vocab.',
+    entries: ADULT,
   },
 ]
 
