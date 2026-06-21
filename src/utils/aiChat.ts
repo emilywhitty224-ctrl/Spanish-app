@@ -22,13 +22,24 @@ export interface AiReply {
   }
 }
 
-function systemPrompt(scenario: string): string {
+/** Difficulty of Barny's Spanish. 'beginner' = absolute-beginner friendly. */
+export type ChatLevel = 'beginner' | 'normal'
+
+function levelGuidance(level: ChatLevel): string {
+  if (level === 'beginner') {
+    return `- Speak Castilian Spanish (Spain) at CEFR A1 — for an ABSOLUTE BEGINNER. Use ONLY very common, basic words and the present tense. Keep every reply to ONE short sentence (about 8 words or fewer). Avoid idioms, slang, and rare vocabulary.
+- If the learner seems stuck, replies in English, or makes a big mistake, gently rephrase your question in even simpler Spanish. Be warm and very encouraging.`
+  }
+  return `- Speak Castilian Spanish (Spain), CEFR A2 level. Keep each reply to 1–2 short sentences.`
+}
+
+function systemPrompt(scenario: string, level: ChatLevel): string {
   return `You are Barny, a friendly cartoon dog who chats in Spanish with a beginner learner living in Valencia, Spain.
 
 Scenario: ${scenario}
 
 Rules:
-- Speak Castilian Spanish (Spain), CEFR A2 level. Keep each reply to 1–2 short sentences.
+${levelGuidance(level)}
 - Stay in the scenario. Drive the conversation forward with natural follow-up questions.
 - After the user replies, judge their Spanish:
   - "good"  = natural and correct
@@ -72,11 +83,11 @@ function parseJsonReply(raw: string): AiReply {
   return reply
 }
 
-async function callGemini(apiKey: string, scenario: string, history: AiTurn[]): Promise<AiReply> {
+async function callGemini(apiKey: string, scenario: string, history: AiTurn[], level: ChatLevel): Promise<AiReply> {
   const messages = buildMessages(history)
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`
   const body = {
-    systemInstruction: { parts: [{ text: systemPrompt(scenario) }] },
+    systemInstruction: { parts: [{ text: systemPrompt(scenario, level) }] },
     contents: messages.length > 0
       ? messages.map((m) => ({ role: m.role, parts: [{ text: m.text }] }))
       : [{ role: 'user', parts: [{ text: '(begin the conversation)' }] }],
@@ -94,7 +105,7 @@ async function callGemini(apiKey: string, scenario: string, history: AiTurn[]): 
   return parseJsonReply(text)
 }
 
-async function callAnthropic(apiKey: string, scenario: string, history: AiTurn[]): Promise<AiReply> {
+async function callAnthropic(apiKey: string, scenario: string, history: AiTurn[], level: ChatLevel): Promise<AiReply> {
   const messages = history.length > 0
     ? history.map((t) => ({
         role: t.role === 'barny' ? 'assistant' : 'user',
@@ -112,7 +123,7 @@ async function callAnthropic(apiKey: string, scenario: string, history: AiTurn[]
     body: JSON.stringify({
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 400,
-      system: systemPrompt(scenario),
+      system: systemPrompt(scenario, level),
       messages,
     }),
   })
@@ -128,9 +139,62 @@ export async function chatWithAI(
   apiKey: string,
   scenario: string,
   history: AiTurn[],
+  level: ChatLevel = 'normal',
 ): Promise<AiReply> {
-  if (provider === 'gemini') return callGemini(apiKey, scenario, history)
-  return callAnthropic(apiKey, scenario, history)
+  if (provider === 'gemini') return callGemini(apiKey, scenario, history, level)
+  return callAnthropic(apiKey, scenario, history, level)
+}
+
+/**
+ * Translate a single Spanish word as used in a sentence, for beginner
+ * tap-to-look-up. Returns just the short English meaning (no JSON).
+ */
+export async function translateWord(
+  provider: AiProvider,
+  apiKey: string,
+  word: string,
+  sentence: string,
+): Promise<string> {
+  const sys = `You are a Spanish→English dictionary for a beginner. Give the English meaning of the given Spanish word as it is used in the sentence. Reply with ONLY the short English meaning (1–4 words). No quotes, no punctuation at the end, no extra text.`
+  const user = `Sentence: ${sentence}\nWord: ${word}`
+  const clean = (s: string) => s.trim().replace(/^["'“”]+|["'“”.]+$/g, '').trim()
+  if (provider === 'gemini') {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: sys }] },
+        contents: [{ role: 'user', parts: [{ text: user }] }],
+        generationConfig: { temperature: 0.2 },
+      }),
+    })
+    if (!res.ok) throw new Error(`Gemini ${res.status}: ${await res.text()}`)
+    const data = await res.json()
+    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text
+    if (!text) throw new Error('Gemini returned no text')
+    return clean(text)
+  }
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
+    },
+    body: JSON.stringify({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 30,
+      system: sys,
+      messages: [{ role: 'user', content: user }],
+    }),
+  })
+  if (!res.ok) throw new Error(`Anthropic ${res.status}: ${await res.text()}`)
+  const data = await res.json()
+  const text = data?.content?.[0]?.text
+  if (!text) throw new Error('Anthropic returned no text')
+  return clean(text)
 }
 
 /**
@@ -157,9 +221,9 @@ export interface SuggestedReply {
   phonetic: string
 }
 
-const SUGGEST_SYSTEM = `You are a Spanish tutor helping a beginner learner respond in a conversation.
+const suggestSystem = (level: ChatLevel) => `You are a Spanish tutor helping a beginner learner respond in a conversation.
 Given the conversation so far, produce exactly 3 short possible Spanish replies the learner could send next.
-Each should be natural Castilian Spanish (Spain), CEFR A2 level, 1 sentence max.
+Each should be natural Castilian Spanish (Spain), ${level === 'beginner' ? 'CEFR A1 level (very simple, common words, present tense)' : 'CEFR A2 level'}, 1 sentence max.
 Vary the tone: one simple/safe, one slightly fuller, one with a question.
 For each reply, include "phonetic": a plain-letters pronunciation guide for an English speaker.
   - Syllables joined by hyphens, stressed syllable in CAPS. Example: "¿Cómo estás?" → "KO-mo es-TAS".
@@ -167,7 +231,7 @@ For each reply, include "phonetic": a plain-letters pronunciation guide for an E
 Respond with ONLY a JSON array, no prose, no markdown:
 [{"spanish": "...", "english": "...", "phonetic": "..."}, ...]`
 
-async function callGeminiSuggest(apiKey: string, scenario: string, history: AiTurn[]): Promise<SuggestedReply[]> {
+async function callGeminiSuggest(apiKey: string, scenario: string, history: AiTurn[], level: ChatLevel): Promise<SuggestedReply[]> {
   const messages = buildMessages(history)
   // Gemini requires the last message to have role 'user'
   if (messages.length === 0 || messages[messages.length - 1].role !== 'user') {
@@ -175,7 +239,7 @@ async function callGeminiSuggest(apiKey: string, scenario: string, history: AiTu
   }
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`
   const body = {
-    systemInstruction: { parts: [{ text: SUGGEST_SYSTEM + `\n\nScenario: ${scenario}` }] },
+    systemInstruction: { parts: [{ text: suggestSystem(level) + `\n\nScenario: ${scenario}` }] },
     contents: messages.map((m) => ({ role: m.role, parts: [{ text: m.text }] })),
     generationConfig: { responseMimeType: 'application/json', temperature: 0.8 },
   }
@@ -188,7 +252,7 @@ async function callGeminiSuggest(apiKey: string, scenario: string, history: AiTu
   return JSON.parse(cleaned)
 }
 
-async function callAnthropicSuggest(apiKey: string, scenario: string, history: AiTurn[]): Promise<SuggestedReply[]> {
+async function callAnthropicSuggest(apiKey: string, scenario: string, history: AiTurn[], level: ChatLevel): Promise<SuggestedReply[]> {
   const messages = history.length > 0
     ? history.map((t) => ({ role: t.role === 'barny' ? 'assistant' : 'user', content: t.spanish }))
     : [{ role: 'user' as const, content: '(begin the conversation)' }]
@@ -203,7 +267,7 @@ async function callAnthropicSuggest(apiKey: string, scenario: string, history: A
     body: JSON.stringify({
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 300,
-      system: SUGGEST_SYSTEM + `\n\nScenario: ${scenario}`,
+      system: suggestSystem(level) + `\n\nScenario: ${scenario}`,
       messages,
     }),
   })
@@ -220,9 +284,10 @@ export async function suggestReplies(
   apiKey: string,
   scenario: string,
   history: AiTurn[],
+  level: ChatLevel = 'normal',
 ): Promise<SuggestedReply[]> {
-  if (provider === 'gemini') return callGeminiSuggest(apiKey, scenario, history)
-  return callAnthropicSuggest(apiKey, scenario, history)
+  if (provider === 'gemini') return callGeminiSuggest(apiKey, scenario, history, level)
+  return callAnthropicSuggest(apiKey, scenario, history, level)
 }
 
 export interface ExtractedWord {

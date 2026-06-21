@@ -1346,35 +1346,50 @@ export function RevisionGame({ title, icon, vocab: allVocab, deckLabel, exitTo, 
 
               {/* Multiple choice (also speed-round) */}
               {current.format === 'multiple-choice' && (
-                <div style={{ marginTop: '16px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                  {current.options.map((opt) => {
-                    const isChosen = chosen === opt
-                    const isTimeout = chosen === '__timeout__'
-                    const isCorrect = opt === current.item.english_translation
-                    let borderColor = 'var(--color-accent)'
-                    if (chosen && isCorrect) borderColor = '#4caf50'
-                    if (isChosen && !isCorrect) borderColor = '#e53935'
-                    if (isTimeout && isCorrect) borderColor = '#ff9800'
-                    return (
-                      <button
-                        key={opt}
-                        className="xp-btn"
-                        disabled={chosen !== null}
-                        style={{ border: chosen ? `2px solid ${borderColor}` : undefined }}
-                        onClick={() => {
-                          if (chosen) return
-                          setChosen(opt)
-                          setTimeout(() => advance(isCorrect ? 'correct' : 'incorrect'), 700)
-                        }}
-                      >
-                        {opt}
-                      </button>
-                    )
-                  })}
-                  {chosen === '__timeout__' && (
-                    <p style={{ gridColumn: '1 / -1', fontSize: '13px', color: '#ff9800', margin: '4px 0 0' }}>
-                      ⏱ Time's up!
-                    </p>
+                <div style={{ marginTop: '16px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                    {current.options.map((opt) => {
+                      const isChosen = chosen === opt
+                      const isTimeout = chosen === '__timeout__'
+                      const isCorrect = opt === current.item.english_translation
+                      let borderColor = 'var(--color-accent)'
+                      if (chosen && isCorrect) borderColor = '#4caf50'
+                      if (isChosen && !isCorrect) borderColor = '#e53935'
+                      if (isTimeout && isCorrect) borderColor = '#ff9800'
+                      return (
+                        <button
+                          key={opt}
+                          className="xp-btn"
+                          disabled={chosen !== null}
+                          style={{ border: chosen ? `2px solid ${borderColor}` : undefined }}
+                          onClick={() => {
+                            if (chosen) return
+                            setChosen(opt)
+                            // A right answer always moves on quickly. A wrong one moves
+                            // on too in the timed Speed Round, but in normal play we
+                            // pause and show the correct answer (handled below).
+                            if (isCorrect) setTimeout(() => advance('correct'), 700)
+                            else if (mode === 'speed-round') setTimeout(() => advance('incorrect'), 700)
+                          }}
+                        >
+                          {opt}
+                        </button>
+                      )
+                    })}
+                    {chosen === '__timeout__' && (
+                      <p style={{ gridColumn: '1 / -1', fontSize: '13px', color: '#ff9800', margin: '4px 0 0' }}>
+                        ⏱ Time's up!
+                      </p>
+                    )}
+                  </div>
+                  {/* Wrong answer in normal play: reveal the correct one and wait. */}
+                  {chosen && chosen !== '__timeout__' && chosen !== current.item.english_translation && mode !== 'speed-round' && (
+                    <div style={{ marginTop: '12px', textAlign: 'center' }}>
+                      <p style={{ fontSize: '14px', color: '#e53935', margin: '0 0 8px' }}>
+                        ✗ Correct answer: <strong style={{ color: 'var(--color-accent)' }}>{current.item.english_translation}</strong>
+                      </p>
+                      <button className="xp-btn xp-btn-primary" onClick={() => advance('incorrect')}>Next →</button>
+                    </div>
                   )}
                 </div>
               )}
@@ -1452,7 +1467,9 @@ export function RevisionGame({ title, icon, vocab: allVocab, deckLabel, exitTo, 
                         onClick={() => {
                           const correct = current.isCorrectPair
                           setTfFeedback(correct ? 'correct' : 'incorrect')
-                          setTimeout(() => advance(correct ? 'correct' : 'incorrect'), 700)
+                          // Right answers move on quickly; wrong ones wait so you can
+                          // read the correct pairing and press Next.
+                          if (correct) setTimeout(() => advance('correct'), 700)
                         }}
                       >
                         True ✓
@@ -1462,7 +1479,7 @@ export function RevisionGame({ title, icon, vocab: allVocab, deckLabel, exitTo, 
                         onClick={() => {
                           const correct = !current.isCorrectPair
                           setTfFeedback(correct ? 'correct' : 'incorrect')
-                          setTimeout(() => advance(correct ? 'correct' : 'incorrect'), 700)
+                          if (correct) setTimeout(() => advance('correct'), 700)
                         }}
                       >
                         False ✗
@@ -1474,9 +1491,12 @@ export function RevisionGame({ title, icon, vocab: allVocab, deckLabel, exitTo, 
                         {tfFeedback === 'correct' ? '✓ Correct!' : '✗ Wrong!'}
                       </p>
                       {tfFeedback === 'incorrect' && (
-                        <p style={{ fontSize: '12px', color: '#888', margin: 0 }}>
-                          "{current.item.spanish_word}" = "{current.item.english_translation}"
-                        </p>
+                        <>
+                          <p style={{ fontSize: '13px', color: '#888', margin: 0 }}>
+                            Correct answer: "{current.item.spanish_word}" = <strong style={{ color: 'var(--color-accent)' }}>"{current.item.english_translation}"</strong>
+                          </p>
+                          <button className="xp-btn xp-btn-primary" onClick={() => advance('incorrect')}>Next →</button>
+                        </>
                       )}
                     </>
                   )}

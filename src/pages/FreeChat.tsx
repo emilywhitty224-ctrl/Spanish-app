@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { XpWindow } from '../components/XpWindow'
 import { Barny, RotatingBarnyIcon } from '../components/Barny'
 import { useStore } from '../store/useStore'
-import { chatWithAI, suggestReplies, type AiTurn, type AiReply, type SuggestedReply } from '../utils/aiChat'
+import { chatWithAI, suggestReplies, translateWord, type AiTurn, type AiReply, type SuggestedReply, type ChatLevel } from '../utils/aiChat'
 import { speak, speakCycle, speechSupported, recognitionSupported, startListening, applySpanishPunctuation, describeRecognitionError } from '../utils/speak'
 
 interface Scenario {
@@ -84,6 +84,9 @@ export function FreeChat() {
   const customWords = useStore((s) => s.customWords)
 
   const [scenario, setScenario] = useState<Scenario | null>(null)
+  // Difficulty of Barny's Spanish. Defaults to beginner — easier to step up than
+  // to discover you can step down.
+  const [level, setLevel] = useState<ChatLevel>('beginner')
   const [turns, setTurns] = useState<ChatTurn[]>([])
   const [draft, setDraft] = useState('')
   const [loading, setLoading] = useState(false)
@@ -96,6 +99,10 @@ export function FreeChat() {
   const stopListenRef = useRef<(() => void) | null>(null)
   const [suggestions, setSuggestions] = useState<SuggestedReply[]>([])
   const [loadingSuggest, setLoadingSuggest] = useState(false)
+  // Tap-a-word lookup: which word is being shown, plus a cache so we never
+  // re-translate the same word.
+  const [gloss, setGloss] = useState<{ turn: number; word: string; english: string | null } | null>(null)
+  const glossCache = useRef<Record<string, string>>({})
 
   async function start(s: Scenario) {
     if (!aiApiKey) { setError('Paste an API key in Settings first.'); return }
@@ -113,7 +120,7 @@ export function FreeChat() {
     setError(null)
     setLoading(true)
     try {
-      const reply = await chatWithAI(aiProvider, aiApiKey, resolved.prompt, [])
+      const reply = await chatWithAI(aiProvider, aiApiKey, resolved.prompt, [], level)
       setTurns([{ barny: { spanish: reply.barnySpanish, english: reply.barnyEnglish } }])
       if (speechSupported) setTimeout(() => { setWordIdx(-1); speak(reply.barnySpanish, setWordIdx) }, 250)
     } catch (e) {
@@ -146,7 +153,7 @@ export function FreeChat() {
     })
 
     try {
-      const reply = await chatWithAI(aiProvider, aiApiKey, scenario.prompt, history)
+      const reply = await chatWithAI(aiProvider, aiApiKey, scenario.prompt, history, level)
       const next = [...optimistic]
       next[lastIdx] = { ...next[lastIdx], feedback: reply.feedback }
       next.push({ barny: { spanish: reply.barnySpanish, english: reply.barnyEnglish } })
@@ -169,7 +176,7 @@ export function FreeChat() {
       if (t.user) history.push({ role: 'user', spanish: t.user.spanish })
     })
     try {
-      const results = await suggestReplies(aiProvider, aiApiKey, scenario.prompt, history)
+      const results = await suggestReplies(aiProvider, aiApiKey, scenario.prompt, history, level)
       setSuggestions(results)
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
@@ -179,7 +186,28 @@ export function FreeChat() {
   }
 
   function reset() {
-    setScenario(null); setTurns([]); setDraft(''); setError(null); setSuggestions([])
+    setScenario(null); setTurns([]); setDraft(''); setError(null); setSuggestions([]); setGloss(null)
+  }
+
+  // Strip surrounding punctuation so "¿Cómo" / "estás?" look up cleanly.
+  const cleanWord = (w: string) => w.replace(/[¿?¡!.,;:«»"'()…—]/g, '').trim()
+
+  // Tap a word in Barny's line to look up just that word's English meaning.
+  async function lookupWord(turn: number, raw: string) {
+    if (!aiApiKey) return
+    const word = cleanWord(raw)
+    if (!word) return
+    const key = word.toLowerCase()
+    const cached = glossCache.current[key]
+    if (cached) { setGloss({ turn, word, english: cached }); return }
+    setGloss({ turn, word, english: null })
+    try {
+      const en = await translateWord(aiProvider, aiApiKey, word, turns[turn].barny.spanish)
+      glossCache.current[key] = en
+      setGloss((g) => (g && g.turn === turn && g.word === word ? { ...g, english: en } : g))
+    } catch {
+      setGloss((g) => (g && g.turn === turn && g.word === word ? { ...g, english: '(lookup failed)' } : g))
+    }
   }
 
   return (
@@ -196,6 +224,32 @@ export function FreeChat() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             <Barny message="Pick a scenario — we'll chat freely. 🐾" size="small" />
             <div style={{ fontSize: '11px', color: '#888' }}>Using <strong>{aiProvider === 'gemini' ? 'Gemini Flash' : 'Claude Haiku'}</strong></div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px' }}>
+              <span style={{ color: '#888' }}>Level:</span>
+              {(['beginner', 'normal'] as ChatLevel[]).map((l) => {
+                const active = l === level
+                return (
+                  <button
+                    key={l}
+                    className="xp-btn"
+                    onClick={() => setLevel(l)}
+                    style={{
+                      fontSize: '11px', padding: '2px 8px',
+                      fontWeight: active ? 'bold' : 'normal',
+                      background: active ? 'rgba(255,255,255,0.12)' : undefined,
+                      color: active ? 'var(--color-accent)' : undefined,
+                    }}
+                  >
+                    {l === 'beginner' ? '🐣 Beginner' : '💪 Normal'}
+                  </button>
+                )
+              })}
+            </div>
+            {level === 'beginner' && (
+              <div style={{ fontSize: '10px', color: '#777' }}>
+                Barny keeps it to one short, simple sentence. Tap any word he says to see its meaning.
+              </div>
+            )}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               {SCENARIOS.map((s) => (
                 <button
@@ -217,7 +271,17 @@ export function FreeChat() {
         {scenario && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', color: '#888' }}>
-              <span>{scenario.icon} {scenario.title}</span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                {scenario.icon} {scenario.title}
+                <button
+                  className="xp-btn"
+                  title="Switch difficulty — applies from your next message"
+                  style={{ fontSize: '10px', padding: '1px 6px' }}
+                  onClick={() => setLevel((l) => (l === 'beginner' ? 'normal' : 'beginner'))}
+                >
+                  {level === 'beginner' ? '🐣 Beginner' : '💪 Normal'}
+                </button>
+              </span>
               <label style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', cursor: 'pointer' }}>
                 <input type="checkbox" checked={showEnglish} onChange={(e) => setShowEnglish(e.target.checked)} />
                 Show English
@@ -245,11 +309,17 @@ export function FreeChat() {
                     <div style={{ color: 'var(--color-accent)', display: 'flex', alignItems: 'center', gap: '4px' }}>
                       <RotatingBarnyIcon size={120} />
                       <span>{sWords.map((w, wi) => (
-                        <span key={wi} style={{
-                          textDecoration: wi === activeWordIdx ? 'underline' : 'none',
-                          textDecorationThickness: '2px',
-                          transition: 'text-decoration 0.1s',
-                        }}>{w}{' '}</span>
+                        <span
+                          key={wi}
+                          onClick={() => lookupWord(i, w)}
+                          title="Tap for meaning"
+                          style={{
+                            textDecoration: wi === activeWordIdx ? 'underline' : 'none',
+                            textDecorationThickness: '2px',
+                            transition: 'text-decoration 0.1s',
+                            cursor: 'pointer',
+                          }}
+                        >{w}{' '}</span>
                       ))}</span>
                       {speechSupported && (
                         <button
@@ -257,6 +327,14 @@ export function FreeChat() {
                           style={{ fontSize: '10px', padding: '0 6px', marginLeft: '6px' }}
                           onClick={() => { setWordIdx(-1); setTimeout(() => speakCycle(t.barny.spanish, setWordIdx), 50) }}
                         >🔊</button>
+                      )}
+                      {speechSupported && (
+                        <button
+                          className="xp-btn"
+                          title="Play slowly"
+                          style={{ fontSize: '10px', padding: '0 6px', marginLeft: '4px' }}
+                          onClick={() => { setWordIdx(-1); setTimeout(() => speak(t.barny.spanish, setWordIdx, 'es-ES', 0.55), 50) }}
+                        >🐢</button>
                       )}
                       <button
                         className="xp-btn"
@@ -279,6 +357,23 @@ export function FreeChat() {
                             transition: 'color 0.1s',
                           }}>{w}{' '}</span>
                         ))}
+                      </div>
+                    )}
+                    {gloss && gloss.turn === i && (
+                      <div style={{
+                        marginLeft: '14px', fontSize: '12px', color: '#ddd',
+                        display: 'inline-flex', alignItems: 'center', gap: '6px',
+                        background: 'rgba(33,150,243,0.12)', border: '1px solid #2196f3',
+                        borderRadius: '4px', padding: '3px 8px', alignSelf: 'flex-start',
+                      }}>
+                        <strong style={{ color: 'var(--color-accent)' }}>{gloss.word}</strong>
+                        <span>—</span>
+                        <span>{gloss.english ?? '…'}</span>
+                        <button
+                          className="xp-btn"
+                          style={{ fontSize: '9px', padding: '0 5px' }}
+                          onClick={() => setGloss(null)}
+                        >✕</button>
                       </div>
                     )}
                     {t.user && (

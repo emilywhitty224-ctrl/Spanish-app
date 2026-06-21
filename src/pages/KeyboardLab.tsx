@@ -170,8 +170,26 @@ const LINE_SOURCES = {
 } as const
 type LineSource = keyof typeof LINE_SOURCES
 
-// How many times you must write the line correctly to finish.
-const LINES_TARGET = 2
+// Best "lines in a row without a spelling mistake" streak. Like the WPM best,
+// it's a personal high score kept in localStorage, not a campaign stat.
+const LINES_STREAK_BEST_KEY = 'kbd-lines-streak-best'
+function loadLinesStreakBest(): number {
+  if (typeof localStorage === 'undefined') return 0
+  return Number(localStorage.getItem(LINES_STREAK_BEST_KEY)) || 0
+}
+function saveLinesStreakBest(v: number) {
+  if (typeof localStorage !== 'undefined') localStorage.setItem(LINES_STREAK_BEST_KEY, String(v))
+}
+
+// True once the typed value has diverged from the target — a wrong character, or
+// extra characters past the end. Used to count spelling mistakes as they happen.
+function hasTypo(value: string, target: string): boolean {
+  if (value.length > target.length) return true
+  for (let i = 0; i < value.length; i++) {
+    if (value[i] !== target[i]) return true
+  }
+  return false
+}
 
 // Distinct special chars in a target, in order of first appearance.
 function hintsFor(target: string): string[] {
@@ -671,17 +689,24 @@ function LinesGame() {
   }
   const [line, setLine] = useState(() => pickFrom('barny'))
   const [input, setInput] = useState('')
-  const [done, setDone] = useState(0)
-  const [wrong, setWrong] = useState(false)
+  // Lines finished in a row with no mistakes (the score you're chasing), the
+  // running mistake tally, and your all-time best streak.
+  const [streak, setStreak] = useState(0)
+  const [mistakes, setMistakes] = useState(0)
+  const [best, setBest] = useState(loadLinesStreakBest)
+  // Outcome of the line you just submitted — drives Barny's reaction until you
+  // start typing the next one.
+  const [lastResult, setLastResult] = useState<null | 'clean' | 'broke'>(null)
+  // Whether the current line has had a typo at any point (so even a corrected
+  // mistake still breaks the streak), and whether it currently has one (so we
+  // count each fresh divergence rather than every keystroke).
+  const dirtyRef = useRef(false)
+  const typoRef = useRef(false)
   const inputRef = useRef<HTMLTextAreaElement>(null)
 
-  // Stats: a finished set counts toward the streak, scored by first-try
-  // accuracy (lines completed / submit attempts). recordedRef guards against
-  // recording the same completed set more than once.
+  // Each finished line counts toward the daily streak/stats: correct when typed
+  // cleanly, a miss when it carried a mistake (so accuracy = clean-line rate).
   const recordResult = useStore((s) => s.recordResult)
-  const bestLines = useStore((s) => s.stats.bestScores['keyboard-lines'])
-  const [attempts, setAttempts] = useState(0)
-  const recordedRef = useRef(false)
 
   const [muted, setMuted] = useState(false)
   const mutedRef = useRef(muted)
@@ -689,7 +714,6 @@ function LinesGame() {
   const say = (text: string) => { if (!mutedRef.current && speechSupported) speak(text) }
 
   const hints = useMemo(() => hintsFor(line.es), [line])
-  const finished = done >= LINES_TARGET
   const matches = input === line.es
 
   // First index where typed input diverges from the line (-1 if none yet), so
@@ -707,51 +731,65 @@ function LinesGame() {
     return () => clearTimeout(id)
   }, [line])
 
-  function submit() {
-    if (finished) return
-    setAttempts((a) => a + 1)
-    if (matches) {
-      const nextDone = done + 1
-      setDone(nextDone)
-      setInput('')
-      setWrong(false)
-      say(line.es)
-      if (nextDone >= LINES_TARGET && !recordedRef.current) {
-        recordedRef.current = true
-        recordResult('keyboard-lines', LINES_TARGET, attempts + 1)
-      }
-      inputRef.current?.focus()
-    } else {
-      setWrong(true)
+  // Count a spelling mistake each time the input newly diverges from the line.
+  function handleInput(value: string) {
+    const typo = hasTypo(value, line.es)
+    if (typo && !typoRef.current) {
+      setMistakes((m) => m + 1)
+      dirtyRef.current = true
     }
+    typoRef.current = typo
+    if (lastResult) setLastResult(null)
+    setInput(value)
   }
 
-  function resetTo(nextLine: { es: string; en: string }) {
+  // Move on to a fresh line, clearing the per-line typo trackers.
+  function loadLine(nextLine: { es: string; en: string }) {
     setLine(nextLine)
     setInput('')
-    setDone(0)
-    setWrong(false)
-    setAttempts(0)
-    recordedRef.current = false
+    dirtyRef.current = false
+    typoRef.current = false
     inputRef.current?.focus()
   }
 
+  function submit() {
+    if (!matches) return
+    const clean = !dirtyRef.current
+    say(line.es)
+    recordResult('keyboard-lines', clean ? 1 : 0, 1)
+    if (clean) {
+      const next = streak + 1
+      setStreak(next)
+      if (next > best) {
+        setBest(next)
+        saveLinesStreakBest(next)
+      }
+    } else {
+      setStreak(0)
+    }
+    loadLine(pickFrom(source))
+    setLastResult(clean ? 'clean' : 'broke')
+  }
+
+  // "Different line" gives a new sentence with no penalty — a fresh attempt.
   function newLine() {
-    resetTo(pickFrom(source))
+    setLastResult(null)
+    loadLine(pickFrom(source))
   }
 
   function switchSource(next: LineSource) {
     if (next === source) return
     setSource(next)
-    resetTo(pickFrom(next))
+    setLastResult(null)
+    loadLine(pickFrom(next))
   }
 
-  const pose: BarneyPose = finished ? 'celebrate' : wrong ? 'sad' : 'neutral'
-  const message = finished
-    ? `¡Muy bien! ${LINES_TARGET} líneas perfectas. ¡Buen chico (y buena tú)! 🦴`
-    : wrong
-      ? 'Casi — that one had a typo. Mind the accents and try again! 🐾'
-      : `Write this line ${LINES_TARGET} times — accents and all. ¡A escribir!`
+  const pose: BarneyPose = lastResult === 'clean' ? 'celebrate' : lastResult === 'broke' ? 'sad' : 'neutral'
+  const message = lastResult === 'clean'
+    ? `¡Perfecto! ${streak} line${streak === 1 ? '' : 's'} in a row with no mistakes. ¡Sigue así! 🦴`
+    : lastResult === 'broke'
+      ? 'Casi — that line had a typo, so the streak resets to zero. ¡Otra vez! 🐾'
+      : 'Copy this line with no spelling mistakes. How long a streak can you reach? ¡A escribir!'
 
   return (
     <div style={{
@@ -767,7 +805,7 @@ function LinesGame() {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <span style={{ fontSize: '12px', color: 'var(--color-accent)', fontWeight: 'bold' }}>
-            {done} / {LINES_TARGET} lines
+            🔥 {streak} in a row
           </span>
           <SpeakerToggle
             muted={muted}
@@ -781,9 +819,15 @@ function LinesGame() {
       </div>
 
       <p style={{ fontSize: '12px', color: '#aaa', marginTop: 0, marginBottom: '10px' }}>
-        Write each line {LINES_TARGET} times
-        {bestLines !== undefined && ` · best ${bestLines}%`}
+        Copy each line with no spelling mistakes — see how long a streak you can build.
       </p>
+
+      {/* Scoreboard: current streak, all-time best, and total mistakes. */}
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
+        <ScoreBox label="Streak" value={streak} accent="var(--color-accent)" />
+        <ScoreBox label="Best" value={best} accent="#4caf50" />
+        <ScoreBox label="Mistakes" value={mistakes} accent="#e53935" />
+      </div>
 
       {/* Choose the line bank: Barny's lines or Spain/Valencia facts. */}
       <div style={{ display: 'flex', gap: '6px', marginBottom: '10px' }}>
@@ -846,116 +890,93 @@ function LinesGame() {
         “{line.en}”
       </p>
 
-      {/* Chalkboard: each completed line fills a row. */}
-      <div style={{
-        border: '2px solid #2e2e2e',
-        borderRadius: '4px',
-        background: '#1d3026',
-        padding: '8px 10px',
-        marginBottom: '10px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '4px',
-      }}>
-        {Array.from({ length: LINES_TARGET }).map((_, i) => (
-          <div key={i} style={{
-            fontFamily: '"Comic Sans MS", cursive, monospace',
-            fontSize: '13px',
-            color: i < done ? '#eaf6ee' : 'transparent',
-            borderBottom: '1px solid rgba(255,255,255,0.10)',
-            minHeight: '18px',
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-          }}>
-            {i < done ? line.es : '·'}
-          </div>
-        ))}
-      </div>
+      {/* A textarea (not an <input>) so long lines wrap and stay fully visible
+          instead of scrolling off the side; Enter submits the line. */}
+      <textarea
+        ref={inputRef}
+        value={input}
+        rows={2}
+        spellCheck={false}
+        autoCapitalize="off"
+        autoCorrect="off"
+        autoComplete="off"
+        placeholder="Write the line here…"
+        onChange={(e) => handleInput(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault()
+            submit()
+          }
+        }}
+        onPaste={(e) => e.preventDefault()}
+        style={{
+          width: '100%',
+          boxSizing: 'border-box',
+          fontFamily: 'monospace',
+          fontSize: '15px',
+          padding: '8px 10px',
+          borderRadius: '4px',
+          border: `2px solid ${firstError !== -1 || input.length > line.es.length ? '#e53935' : matches ? '#4caf50' : 'var(--color-button-shadow)'}`,
+          background: 'rgba(255,255,255,0.06)',
+          color: '#eee',
+          resize: 'none',
+          overflowWrap: 'anywhere',
+        }}
+      />
 
-      {finished ? (
-        <>
-          <div style={{ fontSize: '12px', color: '#4caf50', fontWeight: 'bold', marginBottom: '10px' }}>
-            🎉 Saved to your streak
-            {attempts > 0 && ` · ${Math.round((LINES_TARGET / attempts) * 100)}% first-try accuracy`}.
-          </div>
-          <button className="xp-btn" style={{ width: '100%' }} onClick={newLine}>
-            New line →
-          </button>
-        </>
-      ) : (
-        <>
-          {/* A textarea (not an <input>) so long lines wrap and stay fully
-              visible instead of scrolling off the side; Enter still submits. */}
-          <textarea
-            ref={inputRef}
-            value={input}
-            rows={2}
-            spellCheck={false}
-            autoCapitalize="off"
-            autoCorrect="off"
-            autoComplete="off"
-            placeholder="Write the line here…"
-            onChange={(e) => {
-              setInput(e.target.value)
-              if (wrong) setWrong(false)
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault()
-                submit()
-              }
-            }}
-            onPaste={(e) => e.preventDefault()}
-            style={{
-              width: '100%',
-              boxSizing: 'border-box',
+      {hints.length > 0 && (
+        <div style={{ marginTop: '8px', display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+          {hints.map((h) => (
+            <span key={h} style={{
+              fontSize: '11px',
               fontFamily: 'monospace',
-              fontSize: '15px',
-              padding: '8px 10px',
+              color: '#bbb',
+              border: '1px solid var(--color-button-shadow)',
               borderRadius: '4px',
-              border: `2px solid ${wrong ? '#e53935' : matches ? '#4caf50' : 'var(--color-button-shadow)'}`,
-              background: 'rgba(255,255,255,0.06)',
-              color: '#eee',
-              resize: 'none',
-              overflowWrap: 'anywhere',
-            }}
-          />
-
-          {hints.length > 0 && (
-            <div style={{ marginTop: '8px', display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-              {hints.map((h) => (
-                <span key={h} style={{
-                  fontSize: '11px',
-                  fontFamily: 'monospace',
-                  color: '#bbb',
-                  border: '1px solid var(--color-button-shadow)',
-                  borderRadius: '4px',
-                  padding: '2px 7px',
-                  background: 'rgba(255,255,255,0.04)',
-                }}>
-                  {h}
-                </span>
-              ))}
-            </div>
-          )}
-
-          <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
-            <button
-              className="xp-btn"
-              style={{ flex: 1 }}
-              disabled={!matches}
-              onClick={submit}
-              title="Add this line to the board"
-            >
-              Add line ✓
-            </button>
-            <button className="xp-btn" style={{ flex: 1 }} onClick={newLine}>
-              Different line ↻
-            </button>
-          </div>
-        </>
+              padding: '2px 7px',
+              background: 'rgba(255,255,255,0.04)',
+            }}>
+              {h}
+            </span>
+          ))}
+        </div>
       )}
+
+      <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+        <button
+          className="xp-btn"
+          style={{ flex: 1 }}
+          disabled={!matches}
+          onClick={submit}
+          title="Submit this line and start the next one"
+        >
+          Next line ✓
+        </button>
+        <button className="xp-btn" style={{ flex: 1 }} onClick={newLine}>
+          Different line ↻
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// One cell of the lines-game scoreboard (streak / best / mistakes).
+function ScoreBox({ label, value, accent }: { label: string; value: number; accent: string }) {
+  return (
+    <div style={{
+      flex: 1,
+      border: '1px solid var(--color-button-shadow)',
+      borderRadius: '4px',
+      padding: '6px 4px',
+      textAlign: 'center',
+      background: 'rgba(255,255,255,0.03)',
+    }}>
+      <div style={{ fontSize: '20px', fontWeight: 'bold', color: accent, fontFamily: 'monospace' }}>
+        {value}
+      </div>
+      <div style={{ fontSize: '10px', color: '#888', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+        {label}
+      </div>
     </div>
   )
 }
