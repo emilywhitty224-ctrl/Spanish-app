@@ -15,49 +15,16 @@ import {
   type Entry,
 } from '../data/basics'
 
+import { makePrompt, type ChallengeRange, type ChallengeTopic } from '../utils/numbers'
+
 type Mode = 'learn' | 'browse' | 'challenge'
 
-function numberToSpanish(n: number): string {
-  if (n === 0) return 'cero'
-  if (n === 100) return 'cien'
-  if (n === 1000) return 'mil'
-
-  const ones = [
-    '', 'uno', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 'ocho', 'nueve',
-    'diez', 'once', 'doce', 'trece', 'catorce', 'quince',
-    'dieciséis', 'diecisiete', 'dieciocho', 'diecinueve',
-    'veinte', 'veintiuno', 'veintidós', 'veintitrés', 'veinticuatro',
-    'veinticinco', 'veintiséis', 'veintisiete', 'veintiocho', 'veintinueve',
-  ]
-  const tens = ['', '', 'veinte', 'treinta', 'cuarenta', 'cincuenta', 'sesenta', 'setenta', 'ochenta', 'noventa']
-  const hundreds = ['', 'ciento', 'doscientos', 'trescientos', 'cuatrocientos', 'quinientos', 'seiscientos', 'setecientos', 'ochocientos', 'novecientos']
-
-  if (n <= 29) return ones[n]
-
-  if (n < 100) {
-    const t = Math.floor(n / 10)
-    const o = n % 10
-    return o === 0 ? tens[t] : `${tens[t]} y ${ones[o]}`
-  }
-
-  const h = Math.floor(n / 100)
-  const rest = n % 100
-  return rest === 0 ? hundreds[h] : `${hundreds[h]} ${numberToSpanish(rest)}`
-}
-
-const CHALLENGE_RANGES = {
-  easy:   [1,   20] as const,
-  medium: [1,  100] as const,
-  hard:   [1, 1000] as const,
-}
-type ChallengeRange = keyof typeof CHALLENGE_RANGES
-
-function randomNum(range: ChallengeRange, avoid?: number): number {
-  const [min, max] = CHALLENGE_RANGES[range]
-  let n: number
-  do { n = Math.floor(Math.random() * (max - min + 1)) + min } while (n === avoid)
-  return n
-}
+const CHALLENGE_TOPICS: { id: ChallengeTopic; label: string }[] = [
+  { id: 'numbers', label: '🔢 Numbers' },
+  { id: 'prices',  label: '💶 Prices' },
+  { id: 'time',    label: '🕒 Time' },
+  { id: 'age',     label: '🎂 Age' },
+]
 
 export function Basics() {
   const navigate = useNavigate()
@@ -585,8 +552,9 @@ function BrowseList({ entries }: { entries: Entry[] }) {
 
 function NumberChallenge() {
   const strictAccents = useStore((s) => s.strictAccents)
+  const [topic, setTopic] = useState<ChallengeTopic>('numbers')
   const [range, setRange] = useState<ChallengeRange>('easy')
-  const [current, setCurrent] = useState<number>(() => randomNum('easy'))
+  const [prompt, setPrompt] = useState(() => makePrompt('numbers', 'easy'))
   const [typed, setTyped] = useState('')
   const [feedback, setFeedback] = useState<'correct' | 'almost' | 'incorrect' | null>(null)
   const [correct, setCorrect] = useState(0)
@@ -595,19 +563,28 @@ function NumberChallenge() {
   const [micError, setMicError] = useState<string | null>(null)
   const stopRef = useRef<(() => void) | null>(null)
 
-  const answer = numberToSpanish(current)
+  // The full '/'-separated set is used for grading; the canonical form is what
+  // we show and speak back so the learner sees one clean answer.
+  const answer = prompt.answer
+  const canonical = prompt.canonical
 
-  function next(r: ChallengeRange = range) {
+  function next(t: ChallengeTopic = topic, r: ChallengeRange = range) {
     stopRef.current?.()
     setListening(false)
-    setCurrent(randomNum(r, current))
+    const avoid = t === 'numbers' ? Number(prompt.display) : undefined
+    setPrompt(makePrompt(t, r, avoid))
     setTyped('')
     setFeedback(null)
   }
 
+  function changeTopic(t: ChallengeTopic) {
+    setTopic(t)
+    next(t, range)
+  }
+
   function changeRange(r: ChallengeRange) {
     setRange(r)
-    next(r)
+    next(topic, r)
   }
 
   function submit() {
@@ -624,31 +601,47 @@ function NumberChallenge() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-      {/* Range selector */}
-      <div style={{ display: 'flex', gap: '6px' }}>
-        {(['easy', 'medium', 'hard'] as ChallengeRange[]).map((r) => (
+      {/* Topic selector — plain numbers, or real-world contexts */}
+      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+        {CHALLENGE_TOPICS.map((t) => (
           <button
-            key={r}
-            className={`xp-btn${range === r ? ' xp-btn-primary' : ''}`}
-            style={{ flex: 1, fontSize: '12px' }}
-            onClick={() => changeRange(r)}
+            key={t.id}
+            className={`xp-btn${topic === t.id ? ' xp-btn-primary' : ''}`}
+            style={{ flex: '1 0 22%', fontSize: '12px' }}
+            onClick={() => changeTopic(t.id)}
           >
-            {r === 'easy' ? '1–20' : r === 'medium' ? '1–100' : '1–1000'}
+            {t.label}
           </button>
         ))}
       </div>
 
-      {/* Score */}
+      {/* Range selector — only meaningful for plain numbers */}
+      {topic === 'numbers' && (
+        <div style={{ display: 'flex', gap: '6px' }}>
+          {(['easy', 'medium', 'hard'] as ChallengeRange[]).map((r) => (
+            <button
+              key={r}
+              className={`xp-btn${range === r ? ' xp-btn-primary' : ''}`}
+              style={{ flex: 1, fontSize: '12px' }}
+              onClick={() => changeRange(r)}
+            >
+              {r === 'easy' ? '1–20' : r === 'medium' ? '1–100' : '1–1000'}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Score / prompt label */}
       <div style={{ fontSize: '12px', color: '#888' }}>
-        {total > 0 ? `${correct}/${total} correct` : 'Write the number in Spanish'}
+        {total > 0 ? `${correct}/${total} correct — ${prompt.label}` : prompt.label}
       </div>
 
-      {/* The number */}
+      {/* The prompt (digit or real-world context) */}
       <div style={{
         fontSize: '56px', fontWeight: 'bold', color: 'var(--color-accent)',
         textAlign: 'center', padding: '16px 0', letterSpacing: '-1px',
       }}>
-        {current}
+        {prompt.display}
       </div>
 
       {/* Input row */}
@@ -709,13 +702,13 @@ function NumberChallenge() {
       {micError && <div style={{ fontSize: '11px', color: '#ff9800' }}>🎤 {micError}</div>}
 
       {feedback === 'correct' && (
-        <div style={{ fontSize: '14px', color: '#4caf50' }}>✓ {answer}</div>
+        <div style={{ fontSize: '14px', color: '#4caf50' }}>✓ {canonical}</div>
       )}
       {feedback === 'almost' && (() => {
-        const { msg, showAnswer } = almostMessage(typed, answer)
+        const { msg, showAnswer } = almostMessage(typed, canonical)
         return (
           <div style={{ fontSize: '14px', color: '#ffb300' }}>
-            ✓ {msg}{showAnswer && <> <strong>{answer}</strong></>}
+            ✓ {msg}{showAnswer && <> <strong>{canonical}</strong></>}
           </div>
         )
       })()}
@@ -724,7 +717,7 @@ function NumberChallenge() {
           ✗{typed.trim() && (
             <> <span style={{ textDecoration: 'line-through', opacity: 0.7 }}>{typed}</span> → </>
           )}
-          <strong>{answer}</strong>
+          <strong>{canonical}</strong>
         </div>
       )}
 
@@ -732,7 +725,7 @@ function NumberChallenge() {
         <button
           className="xp-btn"
           style={{ fontSize: '11px', alignSelf: 'flex-start' }}
-          onClick={() => speakCycle(answer)}
+          onClick={() => speakCycle(canonical)}
         >🔊 Hear it</button>
       )}
 
