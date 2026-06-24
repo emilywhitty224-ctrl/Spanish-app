@@ -55,14 +55,30 @@ export interface NumberPrompt {
   answer: string
   /** The single canonical answer shown and spoken on reveal. */
   canonical: string
+  /**
+   * The integer the prompt represents, for reverse modes (hear/read the
+   * Spanish → type the digit). Only set for plain numbers, where the answer
+   * is a clean integer; the price/time/age contexts leave it undefined.
+   */
+  numericAnswer?: number
 }
 
-export const CHALLENGE_RANGES = {
-  easy:   [1,   20] as const,
-  medium: [1,  100] as const,
-  hard:   [1, 1000] as const,
+// Parse learner-typed digits back to an integer for reverse-mode grading.
+// Tolerates surrounding spaces, thousands separators and a stray currency/hash
+// mark; returns null for anything that isn't a clean whole number.
+export function parseDigits(s: string): number | null {
+  const cleaned = s.replace(/[\s,€#]/g, '')
+  if (!/^\d+$/.test(cleaned)) return null
+  return Number(cleaned)
 }
-export type ChallengeRange = keyof typeof CHALLENGE_RANGES
+
+// An inclusive [min, max] range the learner picks for plain-number practice.
+export type NumberRange = readonly [number, number]
+
+// The range the challenge opens with, and the highest value numberToSpanish
+// can spell cleanly (the generator only covers up to "mil").
+export const DEFAULT_RANGE: NumberRange = [1, 20]
+export const MAX_NUMBER = 1000
 
 export type ChallengeTopic = 'numbers' | 'prices' | 'time' | 'age'
 
@@ -70,18 +86,19 @@ function randomInt(min: number, max: number): number {
   return Math.floor(Math.random() * (max - min + 1)) + min
 }
 
-function randomNum(range: ChallengeRange, avoid?: number): number {
-  const [min, max] = CHALLENGE_RANGES[range]
+function randomNum([min, max]: NumberRange, avoid?: number): number {
   let n: number
-  do { n = randomInt(min, max) } while (n === avoid)
+  // `avoid` stops the same number twice in a row — but only when the range has
+  // room for a different one, otherwise a single-value range would loop forever.
+  do { n = randomInt(min, max) } while (n === avoid && max > min)
   return n
 }
 
 // Plain "see the digit, write the word" prompt.
-function numberPrompt(range: ChallengeRange, avoid?: number): NumberPrompt {
+function numberPrompt(range: NumberRange, avoid?: number): NumberPrompt {
   const n = randomNum(range, avoid)
   const word = numberToSpanish(n)
-  return { display: String(n), label: 'Write the number in Spanish', answer: word, canonical: word }
+  return { display: String(n), label: 'Write the number in Spanish', answer: word, canonical: word, numericAnswer: n }
 }
 
 // Prices: euros + cents, said with "con". Teaches the comma decimal and the
@@ -157,7 +174,7 @@ function agePrompt(): NumberPrompt {
 // Build the next prompt for a topic. `avoid` only applies to plain numbers,
 // where repeating the same digit twice in a row feels broken; the context
 // modes vary enough that an occasional repeat is fine.
-export function makePrompt(topic: ChallengeTopic, range: ChallengeRange, avoid?: number): NumberPrompt {
+export function makePrompt(topic: ChallengeTopic, range: NumberRange, avoid?: number): NumberPrompt {
   switch (topic) {
     case 'prices': return pricePrompt()
     case 'time':   return timePrompt()

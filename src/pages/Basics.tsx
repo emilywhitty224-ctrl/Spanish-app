@@ -15,7 +15,7 @@ import {
   type Entry,
 } from '../data/basics'
 
-import { makePrompt, type ChallengeRange, type ChallengeTopic } from '../utils/numbers'
+import { makePrompt, parseDigits, DEFAULT_RANGE, MAX_NUMBER, type NumberRange, type ChallengeTopic } from '../utils/numbers'
 
 type Mode = 'learn' | 'browse' | 'challenge'
 
@@ -25,6 +25,19 @@ const CHALLENGE_TOPICS: { id: ChallengeTopic; label: string }[] = [
   { id: 'time',    label: '🕒 Time' },
   { id: 'age',     label: '🎂 Age' },
 ]
+
+// Normalise the two typed range boxes into an ordered, in-bounds [lo, hi] pair.
+// Blank/garbage falls back sensibly so the challenge never breaks mid-typing.
+function clampRange(loStr: string, hiStr: string): NumberRange {
+  let lo = parseInt(loStr, 10)
+  let hi = parseInt(hiStr, 10)
+  if (!Number.isFinite(lo)) lo = 0
+  if (!Number.isFinite(hi)) hi = lo
+  lo = Math.min(Math.max(lo, 0), MAX_NUMBER)
+  hi = Math.min(Math.max(hi, 0), MAX_NUMBER)
+  if (hi < lo) [lo, hi] = [hi, lo]
+  return [lo, hi]
+}
 
 export function Basics() {
   const navigate = useNavigate()
@@ -553,8 +566,16 @@ function BrowseList({ entries }: { entries: Entry[] }) {
 function NumberChallenge() {
   const strictAccents = useStore((s) => s.strictAccents)
   const [topic, setTopic] = useState<ChallengeTopic>('numbers')
-  const [range, setRange] = useState<ChallengeRange>('easy')
-  const [prompt, setPrompt] = useState(() => makePrompt('numbers', 'easy'))
+  // The number range is typed by the learner; kept as raw strings so the boxes
+  // stay editable while typing, and normalised to a clean [lo, hi] on use.
+  const [loStr, setLoStr] = useState(String(DEFAULT_RANGE[0]))
+  const [hiStr, setHiStr] = useState(String(DEFAULT_RANGE[1]))
+  // Practice direction, only meaningful for plain numbers:
+  //   write  — see the digit, type the Spanish (the original behaviour)
+  //   listen — hear the Spanish, type the digit
+  //   read   — see the Spanish words, type the digit
+  const [direction, setDirection] = useState<'write' | 'listen' | 'read'>('write')
+  const [prompt, setPrompt] = useState(() => makePrompt('numbers', DEFAULT_RANGE))
   const [typed, setTyped] = useState('')
   const [feedback, setFeedback] = useState<'correct' | 'almost' | 'incorrect' | null>(null)
   const [correct, setCorrect] = useState(0)
@@ -567,8 +588,19 @@ function NumberChallenge() {
   // we show and speak back so the learner sees one clean answer.
   const answer = prompt.answer
   const canonical = prompt.canonical
+  // Reverse modes flip the task: the learner types the digit instead of the
+  // Spanish. Read shows the words; Listen plays them aloud and shows nothing.
+  const isRead = direction === 'read'
+  const isListen = direction === 'listen'
+  const isReverse = isRead || isListen
+  // On reveal: Read confirms the digit, Listen shows digit + words (so the
+  // learner can check what they heard), Write/contexts show the Spanish.
+  const reveal = isListen ? `${prompt.display} — ${canonical}` : isRead ? prompt.display : canonical
 
-  function next(t: ChallengeTopic = topic, r: ChallengeRange = range) {
+  // Turn the two typed boxes into a clean, ordered, in-bounds [lo, hi] pair.
+  const bounds = clampRange(loStr, hiStr)
+
+  function next(t: ChallengeTopic = topic, r: NumberRange = bounds) {
     stopRef.current?.()
     setListening(false)
     const avoid = t === 'numbers' ? Number(prompt.display) : undefined
@@ -579,17 +611,45 @@ function NumberChallenge() {
 
   function changeTopic(t: ChallengeTopic) {
     setTopic(t)
-    next(t, range)
+    // Reverse modes only apply to plain numbers; reset to Write for everything else.
+    if (t !== 'numbers') setDirection('write')
+    next(t, bounds)
   }
 
-  function changeRange(r: ChallengeRange) {
-    setRange(r)
-    next(topic, r)
+  // Commit the typed range: snap both boxes to their normalised values and draw
+  // a fresh number from the new range. Called when a box loses focus / on Enter.
+  function applyRange() {
+    const [lo, hi] = clampRange(loStr, hiStr)
+    setLoStr(String(lo))
+    setHiStr(String(hi))
+    next(topic, [lo, hi])
+  }
+
+  // Switching direction keeps the same number but flips how it's presented, so
+  // clear any half-typed answer / stale verdict (and stop the mic) on the way.
+  function changeDirection(d: 'write' | 'listen' | 'read') {
+    stopRef.current?.()
+    setListening(false)
+    setTyped('')
+    setFeedback(null)
+    setDirection(d)
   }
 
   function submit() {
     if (feedback) { next(); return }
     if (!typed.trim()) return
+    if (isReverse) {
+      // Reverse grading: just an exact integer match against the prompt's number.
+      // Non-numeric input is a no-op rather than a wrong mark — the learner can
+      // only meaningfully answer with digits here, so we wait for a real number.
+      const guess = parseDigits(typed)
+      if (guess == null) return
+      const ok = prompt.numericAnswer != null && guess === prompt.numericAnswer
+      setFeedback(ok ? 'correct' : 'incorrect')
+      setCorrect((c) => c + (ok ? 1 : 0))
+      setTotal((t) => t + 1)
+      return
+    }
     const verdict = checkAnswer(typed, answer, strictAccents)
     // A one-letter typo or missing accent ('almost') still counts as correct —
     // we just show the proper spelling as a nudge.
@@ -598,6 +658,14 @@ function NumberChallenge() {
     setCorrect((c) => c + (ok ? 1 : 0))
     setTotal((t) => t + 1)
   }
+
+  // Listen mode: speak each new prompt aloud automatically. Keyed on the
+  // canonical text so it re-fires for every fresh prompt (and when the learner
+  // switches into Listen mode), but not on unrelated re-renders.
+  useEffect(() => {
+    if (isListen && !feedback) speakCycle(canonical)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isListen, canonical])
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -615,19 +683,53 @@ function NumberChallenge() {
         ))}
       </div>
 
-      {/* Range selector — only meaningful for plain numbers */}
+      {/* Range — typed by the learner; only meaningful for plain numbers */}
+      {topic === 'numbers' && (
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', fontSize: '12px', color: '#888' }}>
+          <span>Range</span>
+          {([['lo', loStr, setLoStr], ['hi', hiStr, setHiStr]] as const).map(([key, val, set], i) => (
+            <span key={key} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              {i === 1 && <span>to</span>}
+              <input
+                type="number"
+                inputMode="numeric"
+                min={0}
+                max={MAX_NUMBER}
+                value={val}
+                onChange={(e) => set(e.target.value)}
+                onBlur={applyRange}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); (e.target as HTMLInputElement).blur() } }}
+                style={{
+                  width: '64px', padding: '6px 8px', fontSize: '14px', textAlign: 'center',
+                  background: '#1a1a1a', border: '2px solid var(--color-accent)',
+                  borderRadius: '3px', color: '#fff', outline: 'none', boxSizing: 'border-box',
+                }}
+              />
+            </span>
+          ))}
+          <span style={{ fontSize: '11px', opacity: 0.7 }}>(0–{MAX_NUMBER})</span>
+        </div>
+      )}
+
+      {/* Direction selector — reverse modes only make sense for plain numbers */}
       {topic === 'numbers' && (
         <div style={{ display: 'flex', gap: '6px' }}>
-          {(['easy', 'medium', 'hard'] as ChallengeRange[]).map((r) => (
-            <button
-              key={r}
-              className={`xp-btn${range === r ? ' xp-btn-primary' : ''}`}
-              style={{ flex: 1, fontSize: '12px' }}
-              onClick={() => changeRange(r)}
-            >
-              {r === 'easy' ? '1–20' : r === 'medium' ? '1–100' : '1–1000'}
-            </button>
-          ))}
+          {([
+            { id: 'write',  label: '✍️ Write' },
+            { id: 'listen', label: '👂 Listen' },
+            { id: 'read',   label: '👁️ Read' },
+          ] as const)
+            .filter((d) => d.id !== 'listen' || speechSupported)
+            .map((d) => (
+              <button
+                key={d.id}
+                className={`xp-btn${direction === d.id ? ' xp-btn-primary' : ''}`}
+                style={{ flex: 1, fontSize: '12px' }}
+                onClick={() => changeDirection(d.id)}
+              >
+                {d.label}
+              </button>
+            ))}
         </div>
       )}
 
@@ -636,13 +738,26 @@ function NumberChallenge() {
         {total > 0 ? `${correct}/${total} correct — ${prompt.label}` : prompt.label}
       </div>
 
-      {/* The prompt (digit or real-world context) */}
-      <div style={{
-        fontSize: '56px', fontWeight: 'bold', color: 'var(--color-accent)',
-        textAlign: 'center', padding: '16px 0', letterSpacing: '-1px',
-      }}>
-        {prompt.display}
-      </div>
+      {/* The prompt — a digit/context to translate, Spanish words to read, or a
+          tap-to-replay speaker in Listen mode (the number stays hidden). */}
+      {isListen ? (
+        <button
+          type="button"
+          onClick={() => speakCycle(canonical)}
+          title="Play again"
+          style={{
+            fontSize: '56px', background: 'none', border: 'none', cursor: 'pointer',
+            color: 'var(--color-accent)', textAlign: 'center', padding: '16px 0', width: '100%',
+          }}
+        >🔊</button>
+      ) : (
+        <div style={{
+          fontSize: isRead ? '32px' : '56px', fontWeight: 'bold', color: 'var(--color-accent)',
+          textAlign: 'center', padding: '16px 0', letterSpacing: isRead ? '0' : '-1px',
+        }}>
+          {isRead ? prompt.canonical : prompt.display}
+        </div>
+      )}
 
       {/* Input row */}
       <form
@@ -652,13 +767,13 @@ function NumberChallenge() {
         <input
           value={typed}
           disabled={feedback !== null}
-          placeholder={listening ? '🎤 Listening…' : 'Type in Spanish…'}
+          placeholder={isReverse ? 'Type the number…' : listening ? '🎤 Listening…' : 'Type in Spanish…'}
           autoFocus
           autoCapitalize="off"
           autoCorrect="off"
           autoComplete="off"
           spellCheck={false}
-          inputMode="text"
+          inputMode={isReverse ? 'numeric' : 'text'}
           enterKeyHint="done"
           onChange={(e) => setTyped(e.target.value)}
           style={{
@@ -668,7 +783,7 @@ function NumberChallenge() {
             borderRadius: '3px', color: '#fff', outline: 'none', boxSizing: 'border-box',
           }}
         />
-        {recognitionSupported && (
+        {recognitionSupported && !isReverse && (
           <button
             type="button"
             className={`xp-btn${listening ? ' mic-listening' : ''}`}
@@ -702,7 +817,7 @@ function NumberChallenge() {
       {micError && <div style={{ fontSize: '11px', color: '#ff9800' }}>🎤 {micError}</div>}
 
       {feedback === 'correct' && (
-        <div style={{ fontSize: '14px', color: '#4caf50' }}>✓ {canonical}</div>
+        <div style={{ fontSize: '14px', color: '#4caf50' }}>✓ {reveal}</div>
       )}
       {feedback === 'almost' && (() => {
         const { msg, showAnswer } = almostMessage(typed, canonical)
@@ -717,7 +832,7 @@ function NumberChallenge() {
           ✗{typed.trim() && (
             <> <span style={{ textDecoration: 'line-through', opacity: 0.7 }}>{typed}</span> → </>
           )}
-          <strong>{canonical}</strong>
+          <strong>{reveal}</strong>
         </div>
       )}
 
