@@ -583,6 +583,7 @@ function NumberChallenge() {
   const [listening, setListening] = useState(false)
   const [micError, setMicError] = useState<string | null>(null)
   const stopRef = useRef<(() => void) | null>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
 
   // The full '/'-separated set is used for grading; the canonical form is what
   // we show and speak back so the learner sees one clean answer.
@@ -666,6 +667,13 @@ function NumberChallenge() {
     if (isListen && !feedback) speakCycle(canonical)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isListen, canonical])
+
+  // Return focus to the answer box on each fresh prompt (after Next/Skip), so the
+  // learner can keep typing and submitting with Enter without re-tapping the field.
+  useEffect(() => {
+    if (!feedback && !listening) inputRef.current?.focus()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prompt])
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -765,8 +773,11 @@ function NumberChallenge() {
         style={{ display: 'flex', gap: '4px' }}
       >
         <input
+          ref={inputRef}
           value={typed}
-          disabled={feedback !== null}
+          // Read-only (not disabled) once answered, so the field keeps focus and
+          // Enter still submits the form — pressing it again advances to Next.
+          readOnly={feedback !== null}
           placeholder={isReverse ? 'Type the number…' : listening ? '🎤 Listening…' : 'Type in Spanish…'}
           autoFocus
           autoCapitalize="off"
