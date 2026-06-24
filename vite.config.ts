@@ -25,6 +25,16 @@ export default defineConfig({
           { src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' },
           { src: 'pwa-512x512.png', sizes: '512x512', type: 'image/png' },
         ],
+        // Long-press the installed app icon to jump straight into a quick drill.
+        shortcuts: [
+          {
+            name: 'Loo Break',
+            short_name: 'Loo Break',
+            description: 'A quick two-minute Spanish drill',
+            url: '/loo-break',
+            icons: [{ src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' }],
+          },
+        ],
       },
     }),
   ],

@@ -101,6 +101,17 @@ export function Dashboard() {
             <button
               className="xp-btn xp-btn-large"
               style={{ width: '100%', textAlign: 'left', padding: '12px 16px' }}
+              onClick={() => navigate('/loo-break')}
+            >
+              <div style={{ fontSize: '16px', marginBottom: '4px' }}>🚽 Loo Break</div>
+              <div style={{ fontSize: '12px', fontWeight: 'normal', color: '#444' }}>
+                A quick two-minute drill — a random topic plus your weakest words, with a stopwatch
+              </div>
+            </button>
+
+            <button
+              className="xp-btn xp-btn-large"
+              style={{ width: '100%', textAlign: 'left', padding: '12px 16px' }}
               onClick={() => navigate('/campaign/weekly-sprint')}
             >
               <div style={{ fontSize: '16px', marginBottom: '4px' }}>📅 Campaign 1: The Weekly Sprint</div>

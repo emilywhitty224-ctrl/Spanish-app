@@ -75,6 +75,7 @@ export interface ProfileStats {
   streak: number
   lastPlayed: string | null // YYYY-MM-DD
   bestScores: Record<string, number> // mode id -> best percentage (0-100)
+  bestTimes: Record<string, number> // mode id -> fastest clean-round time (seconds)
 }
 
 export interface SrsMistake {
@@ -109,6 +110,7 @@ const emptyStats = (): ProfileStats => ({
   streak: 0,
   lastPlayed: null,
   bestScores: {},
+  bestTimes: {},
 })
 
 function todayKey(): string {
@@ -137,6 +139,10 @@ function mergeStats(all: ProfileStats[]): ProfileStats {
     }
     for (const [mode, pct] of Object.entries(s.bestScores ?? {})) {
       if (pct > (merged.bestScores[mode] ?? 0)) merged.bestScores[mode] = pct
+    }
+    // Best times merge the other way — faster (smaller) wins.
+    for (const [mode, secs] of Object.entries(s.bestTimes ?? {})) {
+      if (secs < (merged.bestTimes[mode] ?? Infinity)) merged.bestTimes[mode] = secs
     }
   }
   return merged
@@ -233,6 +239,7 @@ interface AppState {
   completeUnit: (unitId: string) => void
   unlockAllUnits: () => void
   recordResult: (mode: string, correct: number, total: number) => void
+  recordTime: (mode: string, seconds: number) => void
   addCustomWord: (word: VocabularyItem) => void
   removeCustomWord: (id: string) => void
   toggleActiveUse: (id: string) => void
@@ -389,8 +396,19 @@ export const useStore = create<AppState>()(
               streak,
               lastPlayed: today,
               bestScores,
+              bestTimes: prev.bestTimes ?? {},
             },
           }
+        }),
+
+      // Record the time for a round — only the fastest is kept. Callers should
+      // only pass clean (100%) rounds so a "best time" always means a perfect run.
+      recordTime: (mode, seconds) =>
+        set((state) => {
+          const prev = state.stats ?? emptyStats()
+          const bestTimes = { ...(prev.bestTimes ?? {}) }
+          if (seconds < (bestTimes[mode] ?? Infinity)) bestTimes[mode] = seconds
+          return { stats: { ...prev, bestTimes } }
         }),
 
       addCustomWord: (word) =>
@@ -471,7 +489,7 @@ export const useStore = create<AppState>()(
     }),
     {
       name: 'spanish-app-store',
-      version: 3,
+      version: 4,
       // Migrate locally-persisted state forward across schema versions.
       migrate: (persisted: any, fromVersion: number) => {
         if (!persisted) return persisted
@@ -485,6 +503,9 @@ export const useStore = create<AppState>()(
         }
         if (fromVersion < 3) {
           persisted.course = persisted.course ?? emptyCourse()
+        }
+        if (fromVersion < 4) {
+          persisted.stats = { ...emptyStats(), ...(persisted.stats ?? {}) }
         }
         return persisted
       },

@@ -69,6 +69,9 @@ function buildQuestions(
   mode: RevisionMode,
   tier: DifficultyBand = 3,
   srs: Record<string, { seen?: number }> = {},
+  // When true, "mixed" rounds avoid any format that needs the keyboard (reverse,
+  // fill-in-the-blank) — handy for one-handed, on-the-go drills like Loo Break.
+  tapOnly = false,
 ): QuizQuestion[] {
   if (mode === 'matching' || mode === 'memory' || mode === 'gusta-drill') return []
   if (mode === 'conjugation') return buildConjugationLadder(vocab)
@@ -99,8 +102,8 @@ function buildQuestions(
     // formats (typing, true/false) join at tier 2+ once a word has been seen.
     const roll = Math.random()
     if (tier >= 2 && !isNew) {
-      if (roll < 0.2) return { format: 'reverse', item }
-      if (roll < 0.4) return { format: 'fill-in-the-blank', item }
+      if (!tapOnly && roll < 0.2) return { format: 'reverse', item }
+      if (!tapOnly && roll < 0.4) return { format: 'fill-in-the-blank', item }
       if (roll < 0.55 && vocab.length >= 2) {
         const useCorrect = Math.random() < 0.5
         const shownTranslation = useCorrect
@@ -233,6 +236,12 @@ const BARNY_MESSAGES = [
   'Every word gets you closer! 🐾',
 ]
 
+function fmtTime(totalSeconds: number) {
+  const m = Math.floor(totalSeconds / 60)
+  const s = totalSeconds % 60
+  return `${m}:${s.toString().padStart(2, '0')}`
+}
+
 function barnyResult(correct: number, total: number) {
   const pct = correct / total
   if (pct >= 0.8) return `¡Excelente! ${correct}/${total} — you nailed it! 🐾`
@@ -259,6 +268,7 @@ const MODES: { id: RevisionMode; label: string; desc: string }[] = [
 ]
 
 const SPEED_ROUND_SECONDS = 8
+const TWO_MINUTES = 120
 
 export interface RevisionGameProps {
   title: string
@@ -270,11 +280,22 @@ export interface RevisionGameProps {
   autoStart?: RevisionMode
   /** Optional extra UI shown on the mode-select screen (e.g. a deck toggle). */
   headerSlot?: ReactNode
+  /** Show a count-up stopwatch in the corner during a round (e.g. Loo Break). */
+  showStopwatch?: boolean
+  /** Keep "mixed" rounds keyboard-free (tap-only formats). */
+  tapOnly?: boolean
+  /**
+   * When set (and the stopwatch is on), a perfect round's time is saved as a
+   * personal best under this key and shown on the result screen.
+   */
+  stopwatchRecordKey?: string
 }
 
-export function RevisionGame({ title, icon, vocab: allVocab, deckLabel, exitTo, onWordResult, autoStart, headerSlot }: RevisionGameProps) {
+export function RevisionGame({ title, icon, vocab: allVocab, deckLabel, exitTo, onWordResult, autoStart, headerSlot, showStopwatch, tapOnly = false, stopwatchRecordKey }: RevisionGameProps) {
   const navigate = useNavigate()
   const recordResult = useStore((s) => s.recordResult)
+  const recordTime = useStore((s) => s.recordTime)
+  const stats = useStore((s) => s.stats)
   const srs = useStore((s) => s.srs ?? {})
   const strictAccents = useStore((s) => s.strictAccents)
   const modeTier = useStore((s) => s.difficulty.modeTier)
@@ -300,7 +321,7 @@ export function RevisionGame({ title, icon, vocab: allVocab, deckLabel, exitTo, 
   const [mode, setMode] = useState<RevisionMode>(autoStart ?? 'mixed')
 
   // Sequential quiz state
-  const initialQuestions = useMemo(() => buildQuestions(pickDueFirst(vocab, srs, SEQUENTIAL_CAP), mode, modeTier, srs), [])
+  const initialQuestions = useMemo(() => buildQuestions(pickDueFirst(vocab, srs, SEQUENTIAL_CAP), mode, modeTier, srs, tapOnly), [])
   const [questions, setQuestions] = useState<QuizQuestion[]>(initialQuestions)
   const [index, setIndex] = useState(0)
   const [results, setResults] = useState<('correct' | 'incorrect')[]>([])
@@ -353,6 +374,11 @@ export function RevisionGame({ title, icon, vocab: allVocab, deckLabel, exitTo, 
 
   // Score override for non-sequential modes
   const [resultScore, setResultScore] = useState<{ correct: number; total: number } | null>(null)
+
+  // Count-up stopwatch (opt-in). Ticks while a round is in progress and freezes
+  // on the result screen so you can see how long the round took.
+  const [elapsed, setElapsed] = useState(0)
+  const [isNewRecord, setIsNewRecord] = useState(false)
 
   // Re-queue tracking: words missed once come back 3 questions later. We
   // identify redo entries by referential identity (WeakSet) so we don't have
@@ -487,6 +513,8 @@ export function RevisionGame({ title, icon, vocab: allVocab, deckLabel, exitTo, 
     setIndex(0)
     setResults([])
     setResultScore(null)
+    setElapsed(0)
+    setIsNewRecord(false)
     resetQuestionState()
     redoQuestions.current = new WeakSet()
     requeuedIds.current = new Set()
@@ -521,7 +549,7 @@ export function RevisionGame({ title, icon, vocab: allVocab, deckLabel, exitTo, 
       setupSentenceQuestion(round[0], selected)
       setPhase(selected === 'cloze-sentence' ? 'cloze' : selected === 'dictation' ? 'dictation' : 'wordorder')
     } else {
-      setQuestions(buildQuestions(pickDueFirst(vocab, srs, SEQUENTIAL_CAP), selected, modeTier, srs))
+      setQuestions(buildQuestions(pickDueFirst(vocab, srs, SEQUENTIAL_CAP), selected, modeTier, srs, tapOnly))
       setPhase('quiz')
     }
   }
@@ -544,6 +572,15 @@ export function RevisionGame({ title, icon, vocab: allVocab, deckLabel, exitTo, 
   useEffect(() => {
     if (phase === 'quiz' && mode === 'speed-round') setTimeLeft(SPEED_ROUND_SECONDS)
   }, [index]) // intentionally omits phase/mode — only fires on question change
+
+  // Stopwatch: tick once a second while a round is being played.
+  useEffect(() => {
+    if (!showStopwatch) return
+    const playing = phase !== 'select' && phase !== 'result'
+    if (!playing) return
+    const id = setInterval(() => setElapsed((e) => e + 1), 1000)
+    return () => clearInterval(id)
+  }, [showStopwatch, phase])
 
   // Auto-read the prompt aloud when a new quiz question appears.
   // 'reverse' shows the English word, everything else shows the Spanish word.
@@ -642,14 +679,42 @@ export function RevisionGame({ title, icon, vocab: allVocab, deckLabel, exitTo, 
   const resultPct = displayTotal > 0 ? displayCorrect / displayTotal : 0
   const resultPose: BarneyPose = resultPct >= 0.8 ? 'celebrate' : resultPct >= 0.5 ? 'happy' : 'sad'
 
-  // Record a round's outcome once when the result screen appears
+  // Record a round's outcome once when the result screen appears. A perfect
+  // timed round also updates the personal-best time for this drill.
   useEffect(() => {
-    if (phase === 'result' && displayTotal > 0) recordResult(mode, displayCorrect, displayTotal)
+    if (phase !== 'result' || displayTotal <= 0) return
+    recordResult(mode, displayCorrect, displayTotal)
+    if (showStopwatch && stopwatchRecordKey && displayCorrect === displayTotal) {
+      const prevBest = stats.bestTimes?.[stopwatchRecordKey]
+      setIsNewRecord(prevBest === undefined || elapsed < prevBest)
+      recordTime(stopwatchRecordKey, elapsed)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase])
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '8px', width: '100%' }}>
+      {showStopwatch && phase !== 'select' && (() => {
+        // Past the two-minute mark the badge turns amber — a gentle "you've been
+        // a while" nudge without ever stopping the round.
+        const overTime = elapsed >= TWO_MINUTES
+        const col = overTime ? '#ff9800' : 'var(--color-accent)'
+        return (
+          <div
+            aria-label="Time elapsed"
+            style={{
+              position: 'fixed', top: '10px', right: '10px', zIndex: 50,
+              fontFamily: 'var(--font-ui)', fontSize: '13px', fontWeight: 'bold',
+              color: col, background: '#1a1a1a',
+              border: `2px solid ${col}`, borderRadius: '4px',
+              padding: '4px 9px', letterSpacing: '0.5px',
+              boxShadow: '0 2px 6px rgba(0,0,0,0.4)',
+            }}
+          >
+            ⏱ {fmtTime(elapsed)}
+          </div>
+        )
+      })()}
       <XpWindow title={title} icon={icon} width="min(520px, 100%)" onClose={() => navigate(exitTo)} style={{ flex: 1, maxHeight: 'none' }}>
 
         {/* ── Mode selection ── */}
@@ -749,6 +814,21 @@ export function RevisionGame({ title, icon, vocab: allVocab, deckLabel, exitTo, 
                 <Barny message={barnyResult(displayCorrect, displayTotal)} size="medium" pose={resultPose} />
               )}
             </div>
+            {showStopwatch && (() => {
+              const best = stopwatchRecordKey ? stats.bestTimes?.[stopwatchRecordKey] : undefined
+              return (
+                <div style={{ marginBottom: '16px', fontSize: '13px' }}>
+                  <p style={{ margin: 0, color: 'var(--color-accent)', fontWeight: 'bold' }}>
+                    ⏱ Done in {fmtTime(elapsed)}
+                  </p>
+                  {isNewRecord ? (
+                    <p style={{ margin: '4px 0 0', color: '#ffd54f' }}>⚡ New record — fastest clean round!</p>
+                  ) : best !== undefined ? (
+                    <p style={{ margin: '4px 0 0', color: '#888' }}>Best clean round: {fmtTime(best)}</p>
+                  ) : null}
+                </div>
+              )
+            })()}
             <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap' }}>
               <button className="xp-btn xp-btn-primary" onClick={() => startMode(mode)}>↺ Play Again</button>
               <button className="xp-btn" onClick={() => setPhase('select')}>⇦ Change Mode</button>

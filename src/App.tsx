@@ -16,6 +16,7 @@ import { EntryTest } from './pages/EntryTest'
 import { Placement } from './pages/Placement'
 import { Settings } from './pages/Settings'
 import { PreLessonBlitz } from './pages/PreLessonBlitz'
+import { LooBreak } from './pages/LooBreak'
 import { KeyboardLab } from './pages/KeyboardLab'
 import { ReconnectBanner } from './components/ReconnectBanner'
 import './index.css'
@@ -48,6 +49,7 @@ function AppShell() {
         <Route path="/course/unit/:id" element={<A1Unit />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/pre-lesson-blitz" element={<PreLessonBlitz />} />
+        <Route path="/loo-break" element={<LooBreak />} />
         <Route path="/keyboard-lab" element={<KeyboardLab />} />
         <Route path="/campaign/:mode" element={<PlaceholderPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
