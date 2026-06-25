@@ -1,7 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { XpWindow } from '../components/XpWindow'
 import { Barny } from '../components/Barny'
-import { DidYouKnow } from '../components/DidYouKnow'
 
 export function SplashScreen() {
   const navigate = useNavigate()
@@ -60,11 +59,6 @@ export function SplashScreen() {
             </button>
           </div>
         </XpWindow>
-
-        {/* Fact tucked into the bottom-right corner — tap to pop the fact bar open. */}
-        <div style={{ position: 'absolute', bottom: '8px', right: '8px', zIndex: 10 }}>
-          <DidYouKnow collapsible />
-        </div>
       </div>
 
       <p
